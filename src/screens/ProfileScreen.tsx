@@ -12,7 +12,7 @@ import { LoadingView } from '../components/LoadingView';
 import { useAlugueis } from '../hooks/useAlugueis';
 import { useAluno } from '../hooks/useAluno';
 import { useMultas } from '../hooks/useMultas';
-import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import type { MainTabScreenProps } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { border, card, cardPressed } from '../theme/ui';
@@ -22,6 +22,7 @@ import { getInitials } from '../utils/initials';
 type Props = MainTabScreenProps<'Profile'>;
 
 export default function ProfileScreen({ navigation }: Props) {
+  const { signOut } = useAuth();
   const { aluno, loading: alunoLoading } = useAluno();
   const { alugueis, loading: alugueisLoading } = useAlugueis(aluno?.id ?? '');
   const { multas, totalPendente, loading: multasLoading } = useMultas(aluno?.id ?? '');
@@ -40,8 +41,7 @@ export default function ProfileScreen({ navigation }: Props) {
   }, [alugueis]);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    Alert.alert('Sessão encerrada', 'Faça login novamente para continuar.');
+    await signOut();
   };
 
   if (alunoLoading || alugueisLoading || multasLoading) return <LoadingView />;

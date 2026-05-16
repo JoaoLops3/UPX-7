@@ -66,3 +66,16 @@ export const outlineButtonPressed: ViewStyle = {
   backgroundColor: colors.background,
   borderColor: colors.primary,
 };
+
+/** Remove o outline quadrado do navegador em TextInput na web. */
+export const textInputWeb: ViewStyle =
+  Platform.OS === 'web'
+    ? {
+        outlineWidth: 0,
+        outlineStyle: 'none',
+        outlineColor: 'transparent',
+        borderWidth: 0,
+        backgroundColor: 'transparent',
+        boxShadow: 'none',
+      }
+    : {};

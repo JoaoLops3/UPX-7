@@ -1,67 +1,54 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Platform } from 'react-native';
+import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import type { Aluno } from '../types/database';
 import { getSupabaseErrorMessage } from '../utils/supabaseError';
 
 export function useAluno() {
+  const { session, user } = useAuth();
   const [aluno, setAluno] = useState<Aluno | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchAluno = useCallback(async () => {
-    setLoading(true);
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (user?.email) {
-      const { data, error: fetchError } = await supabase
-        .from('alunos')
-        .select('*')
-        .eq('email', user.email)
-        .eq('ativo', true)
-        .maybeSingle();
-
-      if (fetchError) {
-        setError(getSupabaseErrorMessage(fetchError));
-        setAluno(null);
-      } else if (data) {
-        setError(null);
-        setAluno(data as Aluno);
-      } else {
-        setAluno(null);
-        setError(null);
-      }
+    if (!session || !user?.email) {
+      setAluno(null);
+      setError(null);
       setLoading(false);
       return;
     }
 
-    if (Platform.OS === 'web' && __DEV__) {
-      const { data, error: fetchError } = await supabase
-        .from('alunos')
-        .select('*')
-        .eq('ativo', true)
-        .limit(1)
-        .maybeSingle();
+    setLoading(true);
+    const email = user.email.trim().toLowerCase();
+    const { data, error: fetchError } = await supabase
+      .from('alunos')
+      .select('*')
+      .ilike('email', email)
+      .eq('ativo', true)
+      .maybeSingle();
 
-      if (fetchError) {
-        setError(getSupabaseErrorMessage(fetchError));
-        setAluno(null);
-      } else {
-        setError(null);
-        setAluno((data as Aluno) ?? null);
-      }
-    } else {
+    if (fetchError) {
+      setError(getSupabaseErrorMessage(fetchError));
       setAluno(null);
+    } else if (data) {
       setError(null);
+      setAluno(data as Aluno);
+    } else {
+      setError(null);
+      setAluno(null);
     }
     setLoading(false);
-  }, []);
+  }, [session, user?.email]);
 
   useEffect(() => {
-    fetchAluno();
+    void fetchAluno();
   }, [fetchAluno]);
 
-  return { aluno, loading, error, refetch: fetchAluno };
+  return {
+    aluno,
+    loading,
+    error,
+    notRegistered: Boolean(session && user?.email && !loading && !aluno && !error),
+    refetch: fetchAluno,
+  };
 }
