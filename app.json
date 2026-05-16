@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "tap.aluga",
+    "slug": "tap-aluga",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#eaf2fb"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.facens.tapaluga"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#eaf2fb"
+      },
+      "package": "com.facens.tapaluga"
+    },
+    "plugins": ["expo-secure-store"]
+  }
+}
