@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import {
   FlatList,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -14,6 +13,7 @@ import { useAluno } from '../hooks/useAluno';
 import { useMultas } from '../hooks/useMultas';
 import type { MainTabScreenProps } from '../navigation/types';
 import { colors } from '../theme/colors';
+import { border, card } from '../theme/ui';
 import type { AluguelComItem, ItemTipo } from '../types/database';
 import { formatDuration, formatRelativeDateTime } from '../utils/dates';
 
@@ -28,7 +28,9 @@ export default function HistoryScreen(_props: Props) {
 
   const multaPorAluguel = useMemo(() => {
     const map = new Map<string, boolean>();
-    multas.forEach((m) => map.set(m.aluguel_id, true));
+    multas.forEach((m) => {
+      if (m.aluguel_id) map.set(m.aluguel_id, true);
+    });
     return map;
   }, [multas]);
 
@@ -52,11 +54,7 @@ export default function HistoryScreen(_props: Props) {
         <Text style={styles.subtitle}>Seus últimos aluguéis</Text>
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.pills}
-      >
+      <View style={styles.pills}>
         {pills.map((pill) => {
           const active = filtro === pill.key;
           return (
@@ -70,13 +68,16 @@ export default function HistoryScreen(_props: Props) {
               onPress={() => setFiltro(pill.key)}
               accessibilityLabel={`Filtrar ${pill.label}`}
             >
-              <Text style={[styles.pillText, active && styles.pillTextActive]}>
+              <Text
+                style={[styles.pillText, active && styles.pillTextActive]}
+                numberOfLines={2}
+              >
                 {pill.label}
               </Text>
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
 
       {filtrados.length === 0 ? (
         <View style={styles.empty}>
@@ -111,7 +112,7 @@ function HistoryItem({
   const duracao =
     aluguel.fim_real != null
       ? formatDuration(
-          new Date(aluguel.fim_real).getTime() - new Date(aluguel.inicio).getTime(),
+          new Date(aluguel.fim_real).getTime() - new Date(aluguel.inicio ?? 0).getTime(),
         )
       : '—';
 
@@ -130,7 +131,7 @@ function HistoryItem({
           {aluguel.itens.nome}
           {!isQuadra ? ` #${aluguel.itens.numero}` : ''}
         </Text>
-        <Text style={styles.itemDate}>{formatRelativeDateTime(aluguel.inicio)}</Text>
+        <Text style={styles.itemDate}>{formatRelativeDateTime(aluguel.inicio ?? '')}</Text>
       </View>
       {temMulta ? (
         <View style={styles.multaBadge}>
@@ -148,30 +149,42 @@ const styles = StyleSheet.create({
   header: { padding: 16, paddingBottom: 8 },
   title: { fontSize: 22, fontWeight: '700', color: colors.primaryVeryDark },
   subtitle: { fontSize: 13, color: colors.textMuted, marginTop: 4 },
-  pills: { paddingHorizontal: 16, gap: 8, paddingBottom: 12 },
+  pills: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    gap: 8,
+    paddingBottom: 12,
+  },
   pill: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    flex: 1,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    borderRadius: 8,
     borderWidth: 1,
+    borderStyle: 'solid',
     borderColor: colors.border,
     backgroundColor: colors.white,
   },
   pillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   pillPressed: { backgroundColor: colors.background, borderColor: colors.primary },
-  pillText: { fontSize: 13, color: colors.textMuted, fontWeight: '500' },
+  pillText: {
+    fontSize: 12,
+    color: colors.textMuted,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
   pillTextActive: { color: colors.white },
   list: { paddingHorizontal: 16, paddingBottom: 24 },
   itemCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.white,
-    borderRadius: 12,
+    ...card,
     padding: 12,
     marginBottom: 8,
-    borderWidth: 0.5,
-    borderColor: colors.border,
-    elevation: 2,
   },
   itemIcon: {
     width: 40,

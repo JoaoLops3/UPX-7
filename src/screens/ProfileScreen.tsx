@@ -15,6 +15,7 @@ import { useMultas } from '../hooks/useMultas';
 import { supabase } from '../lib/supabase';
 import type { MainTabScreenProps } from '../navigation/types';
 import { colors } from '../theme/colors';
+import { border, card, cardPressed } from '../theme/ui';
 import { formatDuration } from '../utils/dates';
 import { getInitials } from '../utils/initials';
 
@@ -32,7 +33,7 @@ export default function ProfileScreen({ navigation }: Props) {
       .filter((a) => a.fim_real)
       .reduce((sum, a) => {
         const fim = new Date(a.fim_real!).getTime();
-        const inicio = new Date(a.inicio).getTime();
+        const inicio = new Date(a.inicio ?? 0).getTime();
         return sum + (fim - inicio);
       }, 0);
     return formatDuration(totalMs);
@@ -188,22 +189,18 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
   statCard: {
     flex: 1,
+    ...card,
     backgroundColor: colors.background,
-    borderRadius: 12,
     padding: 12,
     alignItems: 'center',
   },
-  statPressed: { opacity: 0.85, borderWidth: 1, borderColor: colors.primary },
+  statPressed: cardPressed(true),
   statValue: { fontSize: 18, fontWeight: '700', color: colors.primaryDark },
   statDanger: { color: colors.dangerText },
   statLabel: { fontSize: 11, color: colors.textMuted, marginTop: 4, textAlign: 'center' },
   menuCard: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    borderWidth: 0.5,
-    borderColor: colors.border,
+    ...card,
     marginBottom: 20,
-    elevation: 2,
     overflow: 'hidden',
   },
   menuItem: {
@@ -212,7 +209,7 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 12,
   },
-  menuBorder: { borderBottomWidth: 0.5, borderBottomColor: colors.border },
+  menuBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
   menuPressed: { backgroundColor: colors.background },
   menuBody: { flex: 1 },
   menuLabel: { fontSize: 14, fontWeight: '500', color: colors.primaryVeryDark },
@@ -226,9 +223,10 @@ const styles = StyleSheet.create({
   },
   menuBadgeText: { fontSize: 11, fontWeight: '600', color: colors.dangerText },
   logoutBtn: {
-    borderWidth: 1,
+    ...border,
     borderColor: '#fca5a5',
     borderRadius: 12,
+    backgroundColor: colors.white,
     padding: 14,
     alignItems: 'center',
   },

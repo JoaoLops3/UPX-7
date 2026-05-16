@@ -10,11 +10,13 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { BackButton } from '../components/BackButton';
 import { LoadingView } from '../components/LoadingView';
 import { useAluno } from '../hooks/useAluno';
 import { useMultas } from '../hooks/useMultas';
 import type { RootStackScreenProps } from '../navigation/types';
 import { colors } from '../theme/colors';
+import { card } from '../theme/ui';
 import type { MultaComAluguel } from '../types/database';
 import { formatDateTime } from '../utils/dates';
 
@@ -32,13 +34,7 @@ export default function FinesScreen({ navigation }: Props) {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Pressable
-        style={({ pressed }) => [styles.backBtn, pressed && styles.backPressed]}
-        onPress={() => navigation.goBack()}
-        accessibilityLabel="Voltar"
-      >
-        <Text style={styles.backText}>← Voltar</Text>
-      </Pressable>
+      <BackButton onPress={() => navigation.goBack()} style={styles.backSpacing} />
 
       <Text style={styles.title}>Minhas multas</Text>
       <Text style={styles.subtitle}>RA · {aluno?.ra ?? '—'}</Text>
@@ -104,7 +100,7 @@ function MultaCard({ multa, ra }: { multa: MultaComAluguel; ra: string }) {
         <View style={styles.cardBody}>
           <BodyLine
             icon="calendar-outline"
-            text={`Alugado em: ${formatDateTime(multa.alugueis?.inicio ?? multa.gerada_em)}`}
+            text={`Alugado em: ${formatDateTime(multa.alugueis?.inicio ?? multa.gerada_em ?? '')}`}
           />
           <BodyLine
             icon="time-outline"
@@ -139,9 +135,7 @@ function BodyLine({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.screenBg },
   content: { padding: 16, paddingBottom: 40 },
-  backBtn: { alignSelf: 'flex-start', marginBottom: 12 },
-  backPressed: { backgroundColor: colors.background, borderRadius: 8, paddingHorizontal: 8 },
-  backText: { color: colors.primary, fontSize: 15 },
+  backSpacing: { marginBottom: 12 },
   title: { fontSize: 22, fontWeight: '700', color: colors.primaryVeryDark },
   subtitle: { fontSize: 13, color: colors.textMuted, marginTop: 4, marginBottom: 16 },
   emptyCard: {
@@ -149,7 +143,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 24,
     alignItems: 'center',
-    borderWidth: 0.5,
+    borderWidth: 1,
+    borderStyle: 'solid',
     borderColor: '#bbf7d0',
   },
   emptyText: { fontSize: 15, fontWeight: '600', color: colors.successText },
@@ -157,8 +152,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderRadius: 12,
     marginBottom: 10,
-    borderWidth: 0.5,
-    borderColor: colors.border,
+    ...card,
     overflow: 'hidden',
     elevation: 2,
   },

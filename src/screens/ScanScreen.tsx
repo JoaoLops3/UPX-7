@@ -7,8 +7,12 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { BackButton } from '../components/BackButton';
+import { ChipButton } from '../components/ChipButton';
+import { PrimaryButton } from '../components/PrimaryButton';
 import type { MainTabScreenProps } from '../navigation/types';
 import { colors } from '../theme/colors';
+import { border } from '../theme/ui';
 import type { ItemTipo } from '../types/database';
 
 type Props = MainTabScreenProps<'Scan'>;
@@ -29,8 +33,8 @@ export default function ScanScreen({ navigation, route }: Props) {
   useEffect(() => {
     const animation = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 1.08, duration: 800, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1.08, duration: 800, useNativeDriver: false }),
+        Animated.timing(pulse, { toValue: 1, duration: 800, useNativeDriver: false }),
       ]),
     );
     animation.start();
@@ -44,13 +48,7 @@ export default function ScanScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.screen}>
-      <Pressable
-        style={({ pressed }) => [styles.backBtn, pressed && styles.backPressed]}
-        onPress={() => navigation.navigate('Home' as const)}
-        accessibilityLabel="Voltar"
-      >
-        <Text style={styles.backText}>← Voltar</Text>
-      </Pressable>
+      <BackButton onPress={() => navigation.navigate('Home' as const)} />
 
       <View style={styles.center}>
         <Animated.View style={[styles.pulseCircle, { transform: [{ scale: pulse }] }]}>
@@ -71,15 +69,12 @@ export default function ScanScreen({ navigation, route }: Props) {
         {chips.map((chip) => {
           const isSelected = selected === chip.key;
           return (
-            <Pressable
+            <ChipButton
               key={chip.key}
-              style={({ pressed }) => [
-                styles.chip,
-                isSelected && styles.chipSelected,
-                pressed && styles.chipPressed,
-              ]}
+              selected={isSelected}
               onPress={() => setSelected(chip.key)}
               accessibilityLabel={`Selecionar ${chip.label}`}
+              style={styles.chipFlex}
             >
               <Ionicons
                 name={chip.icon}
@@ -90,27 +85,22 @@ export default function ScanScreen({ navigation, route }: Props) {
               <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
                 {chip.label}
               </Text>
-            </Pressable>
+            </ChipButton>
           );
         })}
       </View>
 
-      <Pressable
-        style={({ pressed }) => [styles.simulateBtn, pressed && styles.simulatePressed]}
+      <PrimaryButton
+        label="Simular leitura NFC"
         onPress={() => navigation.getParent()?.navigate('Confirm', { item: selected })}
-        accessibilityLabel="Simular leitura NFC"
-      >
-        <Text style={styles.simulateText}>Simular leitura NFC</Text>
-      </Pressable>
+        style={styles.simulateSpacing}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.screenBg, padding: 16 },
-  backBtn: { alignSelf: 'flex-start', paddingVertical: 8 },
-  backPressed: { backgroundColor: colors.background, borderRadius: 8, paddingHorizontal: 8 },
-  backText: { color: colors.primary, fontSize: 15, fontWeight: '500' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   pulseCircle: {
     width: 120,
@@ -120,6 +110,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
+    ...border,
+    borderColor: colors.primary,
   },
   title: { fontSize: 20, fontWeight: '700', color: colors.primaryVeryDark },
   subtitle: {
@@ -130,29 +122,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   chips: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-  chip: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-  },
-  chipSelected: { borderColor: colors.primary, backgroundColor: colors.background },
-  chipPressed: { backgroundColor: colors.background },
+  chipFlex: { flex: 1 },
   chipText: { fontSize: 13, color: colors.inactive, fontWeight: '500' },
   chipTextSelected: { color: colors.primaryDark },
-  simulateBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  simulatePressed: { backgroundColor: colors.background },
-  simulateText: { color: colors.white, fontSize: 16, fontWeight: '600' },
+  simulateSpacing: { marginBottom: 16 },
 });

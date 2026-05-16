@@ -9,11 +9,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { LoadingView } from '../components/LoadingView';
+import { PressableCard } from '../components/PressableCard';
+import { SupabaseErrorBanner } from '../components/SupabaseErrorBanner';
 import { useAlugueis } from '../hooks/useAlugueis';
 import { useAluno } from '../hooks/useAluno';
 import { supabase } from '../lib/supabase';
+import { getSupabaseErrorMessage } from '../utils/supabaseError';
 import type { MainTabScreenProps } from '../navigation/types';
 import { colors } from '../theme/colors';
+import { card } from '../theme/ui';
 import type { Item, ItemTipo } from '../types/database';
 import {
   daysBetween,
@@ -28,24 +32,44 @@ type Props = MainTabScreenProps<'Home'>;
 const QUADRA_SLOTS = 8;
 
 export default function HomeScreen({ navigation }: Props) {
-  const { aluno, loading: alunoLoading } = useAluno();
+  const { aluno, loading: alunoLoading, error: alunoError, refetch: refetchAluno } = useAluno();
   const alunoId = aluno?.id ?? '';
-  const { aluguelAtivo, loading: alugueisLoading } = useAlugueis(alunoId);
+  const {
+    aluguelAtivo,
+    loading: alugueisLoading,
+    error: alugueisError,
+    refetch: refetchAlugueis,
+  } = useAlugueis(alunoId);
   const [itens, setItens] = useState<Item[]>([]);
   const [itensLoading, setItensLoading] = useState(true);
+  const [itensError, setItensError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState('');
 
   const fetchItens = useCallback(async () => {
     setItensLoading(true);
-    const { data } = await supabase.from('itens').select('*');
-    if (data) setItens(data as Item[]);
+    const { data, error } = await supabase.from('itens').select('*');
+    if (error) {
+      setItensError(getSupabaseErrorMessage(error));
+      setItens([]);
+    } else {
+      setItensError(null);
+      setItens((data as Item[]) ?? []);
+    }
     setItensLoading(false);
   }, []);
+
+  const supabaseError = alunoError ?? alugueisError ?? itensError;
+  const retryAll = () => {
+    void refetchAluno();
+    void refetchAlugueis();
+    void fetchItens();
+  };
 
   useFocusEffect(
     useCallback(() => {
       fetchItens();
-    }, [fetchItens]),
+      void refetchAlugueis();
+    }, [fetchItens, refetchAlugueis]),
   );
 
   useEffect(() => {
@@ -80,6 +104,9 @@ export default function HomeScreen({ navigation }: Props) {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      {supabaseError && (
+        <SupabaseErrorBanner message={supabaseError} onRetry={retryAll} />
+      )}
       <View style={styles.header}>
         <View style={styles.headerText}>
           <Text style={styles.greeting}>Olá, {aluno?.nome?.split(' ')[0] ?? 'aluno'}</Text>
@@ -117,10 +144,10 @@ export default function HomeScreen({ navigation }: Props) {
 
       <Text style={styles.sectionTitle}>Itens disponíveis</Text>
 
-      <Pressable
-        style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      <PressableCard
         onPress={() => navigateScan('quadra')}
         accessibilityLabel="Alugar quadra"
+        style={styles.cardSpacing}
       >
         <View style={styles.cardRow}>
           <View style={styles.iconWrap}>
@@ -146,12 +173,12 @@ export default function HomeScreen({ navigation }: Props) {
             </Text>
           </View>
         </View>
-      </Pressable>
+      </PressableCard>
 
-      <Pressable
-        style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      <PressableCard
         onPress={() => navigateScan('guarda_chuva')}
         accessibilityLabel="Alugar guarda-chuva"
+        style={styles.cardSpacing}
       >
         <View style={styles.cardRow}>
           <View style={styles.iconWrap}>
@@ -165,7 +192,7 @@ export default function HomeScreen({ navigation }: Props) {
             <Text style={[styles.badgeText, styles.badgeTextFree]}>Livre</Text>
           </View>
         </View>
-      </Pressable>
+      </PressableCard>
 
       <View style={styles.slotsCard}>
         <Text style={styles.slotsLabel}>Disponibilidade da quadra hoje</Text>
@@ -223,26 +250,15 @@ const styles = StyleSheet.create({
   activeSubtitle: { color: 'rgba(255,255,255,0.8)', fontSize: 13 },
   activeLink: { color: colors.progressFill, fontSize: 13, marginTop: 10, fontWeight: '600' },
   emptyActive: {
+    ...card,
     backgroundColor: '#f3f4f6',
-    borderRadius: 12,
     padding: 20,
     alignItems: 'center',
     marginBottom: 20,
-    borderWidth: 0.5,
-    borderColor: colors.border,
   },
   emptyActiveText: { color: colors.textMuted, fontSize: 14 },
   sectionTitle: { fontSize: 16, fontWeight: '600', color: colors.primaryVeryDark, marginBottom: 10 },
-  card: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 10,
-    borderWidth: 0.5,
-    borderColor: colors.border,
-    elevation: 2,
-  },
-  cardPressed: { backgroundColor: colors.background, borderColor: colors.primary },
+  cardSpacing: { marginBottom: 10 },
   cardRow: { flexDirection: 'row', alignItems: 'center' },
   iconWrap: {
     width: 40,
@@ -263,13 +279,9 @@ const styles = StyleSheet.create({
   badgeTextFree: { color: colors.successText },
   badgeTextBusy: { color: colors.dangerText },
   slotsCard: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
+    ...card,
     padding: 12,
     marginTop: 6,
-    borderWidth: 0.5,
-    borderColor: colors.border,
-    elevation: 2,
   },
   slotsLabel: { fontSize: 12, color: colors.textMuted, marginBottom: 8 },
   slotsRow: { flexDirection: 'row', gap: 6, justifyContent: 'space-between' },

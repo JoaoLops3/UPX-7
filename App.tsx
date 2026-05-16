@@ -1,8 +1,14 @@
+import { useCallback } from 'react';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
+import { useFonts } from 'expo-font';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { StatusBar } from 'expo-status-bar';
+import { WebLayout } from './src/components/WebLayout';
 import { colors } from './src/theme/colors';
 import type { MainTabParamList, RootStackParamList } from './src/navigation/types';
 import HomeScreen from './src/screens/HomeScreen';
@@ -13,10 +19,12 @@ import ConfirmScreen from './src/screens/ConfirmScreen';
 import ActiveScreen from './src/screens/ActiveScreen';
 import FinesScreen from './src/screens/FinesScreen';
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
+const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 function MainTabs() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -25,13 +33,19 @@ function MainTabs() {
           backgroundColor: colors.white,
           borderTopWidth: 0.5,
           borderTopColor: colors.border,
-          height: 62,
-          paddingBottom: 8,
-          paddingTop: 6,
+          ...(Platform.OS !== 'web' && {
+            paddingBottom: Math.max(insets.bottom, 8),
+          }),
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.inactive,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
+        tabBarItemStyle: {
+          padding: 0,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '500',
+        },
       }}
     >
       <Tab.Screen
@@ -78,11 +92,16 @@ function MainTabs() {
   );
 }
 
-export default function App() {
+function AppNavigation() {
   return (
     <NavigationContainer>
       <StatusBar style="dark" />
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false,
+          cardStyle: { backgroundColor: colors.screenBg },
+        }}
+      >
         <Stack.Screen name="MainTabs" component={MainTabs} />
         <Stack.Screen name="Confirm" component={ConfirmScreen} />
         <Stack.Screen name="Active" component={ActiveScreen} />
@@ -91,3 +110,39 @@ export default function App() {
     </NavigationContainer>
   );
 }
+
+export default function App() {
+  const [fontsLoaded, fontError] = useFonts({
+    ...Ionicons.font,
+  });
+
+  const onLayout = useCallback(() => {}, []);
+
+  if (!fontsLoaded && !fontError) {
+    return (
+      <View style={styles.boot}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  return (
+    <GestureHandlerRootView style={styles.root} onLayout={onLayout}>
+      <SafeAreaProvider>
+        <WebLayout>
+          <AppNavigation />
+        </WebLayout>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  boot: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.screenBg,
+  },
+});

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -7,11 +9,14 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { BackButton } from '../components/BackButton';
 import { LoadingView } from '../components/LoadingView';
 import { useAlugueis } from '../hooks/useAlugueis';
 import { useAluno } from '../hooks/useAluno';
+import { devolverAluguel } from '../lib/devolverAluguel';
 import type { RootStackScreenProps } from '../navigation/types';
 import { colors } from '../theme/colors';
+import { card, cardPressed } from '../theme/ui';
 import {
   daysBetween,
   formatCountdown,
@@ -24,8 +29,9 @@ type Props = RootStackScreenProps<'Active'>;
 
 export default function ActiveScreen({ navigation }: Props) {
   const { aluno, loading: alunoLoading } = useAluno();
-  const { aluguelAtivo, loading } = useAlugueis(aluno?.id ?? '');
+  const { aluguelAtivo, loading, refetch } = useAlugueis(aluno?.id ?? '');
   const [countdown, setCountdown] = useState('00:00:00');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!aluguelAtivo || aluguelAtivo.itens.tipo !== 'quadra') return;
@@ -40,12 +46,55 @@ export default function ActiveScreen({ navigation }: Props) {
 
   const progress = useMemo(() => {
     if (!aluguelAtivo) return 0;
-    const start = new Date(aluguelAtivo.inicio).getTime();
+    const start = new Date(aluguelAtivo.inicio ?? Date.now()).getTime();
     const end = new Date(aluguelAtivo.fim_previsto).getTime();
     const now = Date.now();
     if (end <= start) return 0;
     return Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100));
   }, [aluguelAtivo, countdown]);
+
+  const handleDevolver = async () => {
+    if (!aluguelAtivo || !aluno || submitting) return;
+
+    setSubmitting(true);
+    const result = await devolverAluguel(aluguelAtivo, aluno.id);
+    setSubmitting(false);
+
+    if (!result.ok) {
+      Alert.alert('Erro na devolução', result.message);
+      return;
+    }
+
+    await refetch();
+
+    const itemNome = aluguelAtivo.itens.nome;
+    if (result.multaGerada) {
+      const valor = result.valorMulta.toFixed(2).replace('.', ',');
+      Alert.alert(
+        'Devolvido com atraso',
+        `${itemNome} devolvido. Multa de R$ ${valor} (${result.diasAtraso} dia(s)) registrada no seu RA.`,
+        [{ text: 'OK', onPress: () => navigation.navigate('MainTabs') }],
+      );
+    } else {
+      Alert.alert(
+        'Devolução concluída',
+        `${itemNome} devolvido com sucesso.`,
+        [{ text: 'OK', onPress: () => navigation.navigate('MainTabs') }],
+      );
+    }
+  };
+
+  const confirmarDevolucao = () => {
+    if (!aluguelAtivo) return;
+    Alert.alert(
+      'Devolver item',
+      'Aproxime a carteirinha no totem NFC.\n\nEm desenvolvimento web, toque em Confirmar para simular a leitura.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Confirmar', onPress: () => void handleDevolver() },
+      ],
+    );
+  };
 
   if (alunoLoading || loading) return <LoadingView />;
 
@@ -54,13 +103,7 @@ export default function ActiveScreen({ navigation }: Props) {
       <View style={styles.empty}>
         <Ionicons name="cube-outline" size={48} color={colors.inactive} accessibilityElementsHidden />
         <Text style={styles.emptyText}>Nenhum aluguel ativo</Text>
-        <Pressable
-          style={({ pressed }) => [styles.backBtn, pressed && styles.backPressed]}
-          onPress={() => navigation.goBack()}
-          accessibilityLabel="Voltar"
-        >
-          <Text style={styles.backText}>← Voltar</Text>
-        </Pressable>
+        <BackButton onPress={() => navigation.goBack()} />
       </View>
     );
   }
@@ -71,20 +114,15 @@ export default function ActiveScreen({ navigation }: Props) {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <Pressable
-          style={({ pressed }) => [styles.backBtn, pressed && styles.backPressed]}
-          onPress={() => navigation.goBack()}
-          accessibilityLabel="Voltar"
-        >
-          <Text style={styles.backText}>← Voltar</Text>
-        </Pressable>
+        <BackButton onPress={() => navigation.goBack()} />
         <Text style={styles.headerTitle}>Aluguel ativo</Text>
-        <Ionicons
-          name="notifications-outline"
-          size={22}
-          color={colors.primaryDark}
+        <Pressable
+          onPress={() => Alert.alert('Notificações', 'Configurações em breve.')}
           accessibilityLabel="Notificações"
-        />
+          hitSlop={8}
+        >
+          <Ionicons name="notifications-outline" size={22} color={colors.primaryDark} />
+        </Pressable>
       </View>
 
       <View style={styles.heroCard}>
@@ -109,15 +147,25 @@ export default function ActiveScreen({ navigation }: Props) {
       </View>
 
       <Pressable
-        style={({ pressed }) => [styles.devolverBtn, pressed && styles.devolverPressed]}
+        style={({ pressed }) => [
+          styles.devolverBtn,
+          pressed && styles.devolverPressed,
+          submitting && styles.devolverDisabled,
+        ]}
+        onPress={confirmarDevolucao}
+        disabled={submitting}
         accessibilityLabel="Devolver aproximando a carteirinha"
       >
-        <Text style={styles.devolverBtnText}>Devolver — aproxime a carteirinha</Text>
+        {submitting ? (
+          <ActivityIndicator color={colors.primaryDark} />
+        ) : (
+          <Text style={styles.devolverBtnText}>Devolver — aproxime a carteirinha</Text>
+        )}
       </Pressable>
 
       <View style={styles.detailsCard}>
         <Text style={styles.detailsTitle}>Detalhes</Text>
-        <DetailRow label="Início" value={formatDateTime(aluguelAtivo.inicio)} />
+        <DetailRow label="Início" value={formatDateTime(aluguelAtivo.inicio ?? '')} />
         <DetailRow
           label="Devolver até"
           value={
@@ -154,9 +202,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   headerTitle: { fontSize: 18, fontWeight: '700', color: colors.primaryVeryDark },
-  backBtn: { paddingVertical: 4 },
-  backPressed: { backgroundColor: colors.background, borderRadius: 8, paddingHorizontal: 8 },
-  backText: { color: colors.primary, fontSize: 15 },
   heroCard: {
     backgroundColor: colors.primaryVeryDark,
     borderRadius: 12,
@@ -200,28 +245,25 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderRadius: 12,
     padding: 16,
-    borderWidth: 0.5,
-    borderColor: colors.border,
+    ...card,
     alignItems: 'center',
     marginBottom: 16,
-    elevation: 2,
   },
-  devolverPressed: { backgroundColor: colors.background },
+  devolverPressed: cardPressed(true),
+  devolverDisabled: { opacity: 0.6 },
   devolverBtnText: { color: colors.primaryDark, fontSize: 15, fontWeight: '600' },
   detailsCard: {
     backgroundColor: colors.white,
     borderRadius: 12,
     padding: 16,
-    borderWidth: 0.5,
-    borderColor: colors.border,
-    elevation: 2,
+    ...card,
   },
   detailsTitle: { fontSize: 15, fontWeight: '600', color: colors.primaryVeryDark, marginBottom: 12 },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 8,
-    borderBottomWidth: 0.5,
+    borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   detailLabel: { fontSize: 13, color: colors.textMuted },

@@ -10,11 +10,13 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { BackButton } from '../components/BackButton';
 import { LoadingView } from '../components/LoadingView';
 import { useAluno } from '../hooks/useAluno';
 import { supabase } from '../lib/supabase';
 import type { RootStackScreenProps } from '../navigation/types';
 import { colors } from '../theme/colors';
+import { border, card } from '../theme/ui';
 import type { Item } from '../types/database';
 import { addDays, addMinutes, formatDate, formatTime } from '../utils/dates';
 
@@ -94,13 +96,7 @@ export default function ConfirmScreen({ navigation, route }: Props) {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Pressable
-        style={({ pressed }) => [styles.backBtn, pressed && styles.backPressed]}
-        onPress={() => navigation.goBack()}
-        accessibilityLabel="Voltar"
-      >
-        <Text style={styles.backText}>← Voltar</Text>
-      </Pressable>
+      <BackButton onPress={() => navigation.goBack()} style={styles.backSpacing} />
 
       <Text style={styles.title}>Confirmar aluguel</Text>
       <Text style={styles.subtitle}>
@@ -214,17 +210,14 @@ export default function ConfirmScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.screenBg },
   content: { padding: 16, paddingBottom: 40 },
-  backBtn: { alignSelf: 'flex-start', marginBottom: 12 },
-  backPressed: { backgroundColor: colors.background, borderRadius: 8, paddingHorizontal: 8 },
-  backText: { color: colors.primary, fontSize: 15 },
+  backSpacing: { marginBottom: 12 },
   title: { fontSize: 22, fontWeight: '700', color: colors.primaryVeryDark },
   subtitle: { fontSize: 13, color: colors.textMuted, marginTop: 4, marginBottom: 16 },
   itemCard: {
     backgroundColor: colors.white,
     borderRadius: 12,
     padding: 14,
-    borderWidth: 0.5,
-    borderColor: colors.border,
+    ...card,
     marginBottom: 16,
     elevation: 2,
   },
@@ -280,8 +273,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderRadius: 8,
     padding: 12,
-    borderWidth: 0.5,
-    borderColor: colors.border,
+    ...border,
     marginBottom: 12,
   },
   extraTitle: { fontSize: 14, fontWeight: '600', color: colors.primaryVeryDark },
@@ -292,7 +284,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     marginBottom: 12,
-    borderWidth: 0.5,
+    borderWidth: 1,
+    borderStyle: 'solid',
     borderColor: '#fde68a',
   },
   warningText: { fontSize: 13, color: '#92400e', lineHeight: 20 },
