@@ -17,8 +17,9 @@ import { supabase } from '../lib/supabase';
 import type { RootStackScreenProps } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { border, card } from '../theme/ui';
-import type { Item } from '../types/database';
+import type { ExtraQuadra, Item } from '../types/database';
 import { addDays, addMinutes, formatDate, formatTime } from '../utils/dates';
+import { EXTRA_DISPLAY, EXTRA_KEYS, getItemDisplay } from '../utils/itemDisplay';
 
 type Props = RootStackScreenProps<'Confirm'>;
 
@@ -30,7 +31,11 @@ export default function ConfirmScreen({ navigation, route }: Props) {
   const [item, setItem] = useState<Item | null>(null);
   const [loadingItem, setLoadingItem] = useState(true);
   const [duracaoIdx, setDuracaoIdx] = useState(1);
-  const [comExtra, setComExtra] = useState(false);
+  const [extras, setExtras] = useState<Record<ExtraQuadra, boolean>>({
+    futebol: false,
+    volei: false,
+    basquete: false,
+  });
   const [submitting, setSubmitting] = useState(false);
 
   const fetchItem = useCallback(async () => {
@@ -63,6 +68,8 @@ export default function ConfirmScreen({ navigation, route }: Props) {
     return '2h';
   }, [duracaoMin]);
 
+  const extrasSelecionados: ExtraQuadra[] = EXTRA_KEYS.filter((k) => extras[k]);
+
   const handleConfirm = async () => {
     if (!aluno || !item) {
       Alert.alert('Erro', 'Aluno ou item não disponível.');
@@ -78,8 +85,9 @@ export default function ConfirmScreen({ navigation, route }: Props) {
       inicio,
       fim_previsto: fimPrevisto.toISOString(),
       status: 'ativo',
-      com_extra: tipo === 'quadra' ? comExtra : false,
-    });
+      com_extra: tipo === 'quadra' ? extrasSelecionados.length > 0 : false,
+      extras: tipo === 'quadra' ? extrasSelecionados : [],
+    } as never);
 
     if (insertError) {
       Alert.alert('Erro', insertError.message);
@@ -93,6 +101,8 @@ export default function ConfirmScreen({ navigation, route }: Props) {
   };
 
   if (alunoLoading || loadingItem) return <LoadingView />;
+
+  const display = getItemDisplay(tipo);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -108,13 +118,13 @@ export default function ConfirmScreen({ navigation, route }: Props) {
       <View style={styles.itemCard}>
         <View style={styles.itemRow}>
           <Ionicons
-            name={tipo === 'quadra' ? 'football-outline' : 'rainy-outline'}
+            name={display.icon}
             size={24}
             color={colors.primaryDark}
             accessibilityElementsHidden
           />
           <View style={styles.itemInfo}>
-            <Text style={styles.itemName}>{item?.nome ?? 'Item'}</Text>
+            <Text style={styles.itemName}>{item?.nome ?? display.label}</Text>
             <Text style={styles.itemLoc}>{item?.localizacao}</Text>
           </View>
           <View style={[styles.badge, styles.badgeFree]}>
@@ -156,18 +166,32 @@ export default function ConfirmScreen({ navigation, route }: Props) {
             </Pressable>
           </View>
 
-          <View style={styles.extraRow}>
-            <View>
-              <Text style={styles.extraTitle}>Bola de futebol</Text>
-              <Text style={styles.extraSub}>Disponível · 3 unidades</Text>
-            </View>
-            <Switch
-              value={comExtra}
-              onValueChange={setComExtra}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              accessibilityLabel="Incluir bola de futebol"
-            />
-          </View>
+          <Text style={styles.sectionLabel}>Extras (opcional)</Text>
+          {EXTRA_KEYS.map((key) => {
+            const meta = EXTRA_DISPLAY[key];
+            const checked = extras[key];
+            return (
+              <View key={key} style={styles.extraRow}>
+                <View style={styles.extraInfo}>
+                  <View style={styles.extraIconWrap}>
+                    <Ionicons name={meta.icon} size={18} color={colors.primaryDark} />
+                  </View>
+                  <View style={styles.extraTexts}>
+                    <Text style={styles.extraTitle}>{meta.label}</Text>
+                    <Text style={styles.extraSub}>Disponível · {meta.unidades} unidades</Text>
+                  </View>
+                </View>
+                <Switch
+                  value={checked}
+                  onValueChange={(v) =>
+                    setExtras((prev) => ({ ...prev, [key]: v }))
+                  }
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  accessibilityLabel={`Incluir ${meta.label}`}
+                />
+              </View>
+            );
+          })}
 
           <Text style={styles.estimate}>
             Término estimado: {formatTime(fimPrevisto.toISOString())}
@@ -274,8 +298,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     ...border,
-    marginBottom: 12,
+    marginBottom: 8,
   },
+  extraInfo: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 },
+  extraIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  extraTexts: { flex: 1 },
   extraTitle: { fontSize: 14, fontWeight: '600', color: colors.primaryVeryDark },
   extraSub: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   estimate: { fontSize: 13, color: colors.primaryDark, marginBottom: 20 },

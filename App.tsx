@@ -11,12 +11,14 @@ import { StatusBar } from 'expo-status-bar';
 import { WebLayout } from './src/components/WebLayout';
 import { colors } from './src/theme/colors';
 import type { MainTabParamList, RootStackParamList } from './src/navigation/types';
+import { navigationRef } from './src/navigation/rootNavigation';
 import HomeScreen from './src/screens/HomeScreen';
 import ScanScreen from './src/screens/ScanScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import ConfirmScreen from './src/screens/ConfirmScreen';
 import ActiveScreen from './src/screens/ActiveScreen';
+import ReturnScanScreen from './src/screens/ReturnScanScreen';
 import FinesScreen from './src/screens/FinesScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -29,13 +31,16 @@ function MainTabs() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
+        lazy: true,
+        sceneStyle: { backgroundColor: colors.screenBg },
         tabBarStyle: {
           backgroundColor: colors.white,
           borderTopWidth: 0.5,
           borderTopColor: colors.border,
-          ...(Platform.OS !== 'web' && {
-            paddingBottom: Math.max(insets.bottom, 8),
-          }),
+          height: Platform.OS === 'web' ? 60 : 56 + Math.max(insets.bottom, 8),
+          ...(Platform.OS === 'web'
+            ? { paddingTop: 0, paddingBottom: 0 }
+            : { paddingBottom: Math.max(insets.bottom, 8) }),
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.inactive,
@@ -94,17 +99,20 @@ function MainTabs() {
 
 function AppNavigation() {
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <StatusBar style="dark" />
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
           cardStyle: { backgroundColor: colors.screenBg },
+          cardOverlayEnabled: false,
+          presentation: 'card',
         }}
       >
         <Stack.Screen name="MainTabs" component={MainTabs} />
         <Stack.Screen name="Confirm" component={ConfirmScreen} />
         <Stack.Screen name="Active" component={ActiveScreen} />
+        <Stack.Screen name="Return" component={ReturnScanScreen} />
         <Stack.Screen name="Fines" component={FinesScreen} />
       </Stack.Navigator>
     </NavigationContainer>

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
@@ -13,10 +12,10 @@ import { BackButton } from '../components/BackButton';
 import { LoadingView } from '../components/LoadingView';
 import { useAlugueis } from '../hooks/useAlugueis';
 import { useAluno } from '../hooks/useAluno';
-import { devolverAluguel } from '../lib/devolverAluguel';
 import type { RootStackScreenProps } from '../navigation/types';
+import { DevolverNfcButton } from '../components/DevolverNfcButton';
 import { colors } from '../theme/colors';
-import { card, cardPressed } from '../theme/ui';
+import { card } from '../theme/ui';
 import {
   daysBetween,
   formatCountdown,
@@ -24,14 +23,15 @@ import {
   formatDateTime,
   formatTime,
 } from '../utils/dates';
+import { EXTRA_DISPLAY } from '../utils/itemDisplay';
+import type { ExtraQuadra } from '../types/database';
 
 type Props = RootStackScreenProps<'Active'>;
 
 export default function ActiveScreen({ navigation }: Props) {
   const { aluno, loading: alunoLoading } = useAluno();
-  const { aluguelAtivo, loading, refetch } = useAlugueis(aluno?.id ?? '');
+  const { aluguelAtivo, loading } = useAlugueis(aluno?.id ?? '');
   const [countdown, setCountdown] = useState('00:00:00');
-  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!aluguelAtivo || aluguelAtivo.itens.tipo !== 'quadra') return;
@@ -53,49 +53,6 @@ export default function ActiveScreen({ navigation }: Props) {
     return Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100));
   }, [aluguelAtivo, countdown]);
 
-  const handleDevolver = async () => {
-    if (!aluguelAtivo || !aluno || submitting) return;
-
-    setSubmitting(true);
-    const result = await devolverAluguel(aluguelAtivo, aluno.id);
-    setSubmitting(false);
-
-    if (!result.ok) {
-      Alert.alert('Erro na devolução', result.message);
-      return;
-    }
-
-    await refetch();
-
-    const itemNome = aluguelAtivo.itens.nome;
-    if (result.multaGerada) {
-      const valor = result.valorMulta.toFixed(2).replace('.', ',');
-      Alert.alert(
-        'Devolvido com atraso',
-        `${itemNome} devolvido. Multa de R$ ${valor} (${result.diasAtraso} dia(s)) registrada no seu RA.`,
-        [{ text: 'OK', onPress: () => navigation.navigate('MainTabs') }],
-      );
-    } else {
-      Alert.alert(
-        'Devolução concluída',
-        `${itemNome} devolvido com sucesso.`,
-        [{ text: 'OK', onPress: () => navigation.navigate('MainTabs') }],
-      );
-    }
-  };
-
-  const confirmarDevolucao = () => {
-    if (!aluguelAtivo) return;
-    Alert.alert(
-      'Devolver item',
-      'Aproxime a carteirinha no totem NFC.\n\nEm desenvolvimento web, toque em Confirmar para simular a leitura.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Confirmar', onPress: () => void handleDevolver() },
-      ],
-    );
-  };
-
   if (alunoLoading || loading) return <LoadingView />;
 
   if (!aluguelAtivo) {
@@ -110,9 +67,20 @@ export default function ActiveScreen({ navigation }: Props) {
 
   const isQuadra = aluguelAtivo.itens.tipo === 'quadra';
   const diasRestantes = daysBetween(new Date(), new Date(aluguelAtivo.fim_previsto));
+  const extras = (aluguelAtivo.extras ?? []) as ExtraQuadra[];
+  const extrasLabel =
+    extras.length > 0
+      ? extras.map((e) => EXTRA_DISPLAY[e]?.label ?? e).join(' · ')
+      : aluguelAtivo.com_extra
+        ? 'Bola incluída'
+        : null;
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+    >
       <View style={styles.header}>
         <BackButton onPress={() => navigation.goBack()} />
         <Text style={styles.headerTitle}>Aluguel ativo</Text>
@@ -146,22 +114,7 @@ export default function ActiveScreen({ navigation }: Props) {
         </View>
       </View>
 
-      <Pressable
-        style={({ pressed }) => [
-          styles.devolverBtn,
-          pressed && styles.devolverPressed,
-          submitting && styles.devolverDisabled,
-        ]}
-        onPress={confirmarDevolucao}
-        disabled={submitting}
-        accessibilityLabel="Devolver aproximando a carteirinha"
-      >
-        {submitting ? (
-          <ActivityIndicator color={colors.primaryDark} />
-        ) : (
-          <Text style={styles.devolverBtnText}>Devolver — aproxime a carteirinha</Text>
-        )}
-      </Pressable>
+      <DevolverNfcButton />
 
       <View style={styles.detailsCard}>
         <Text style={styles.detailsTitle}>Detalhes</Text>
@@ -174,9 +127,7 @@ export default function ActiveScreen({ navigation }: Props) {
               : formatDate(aluguelAtivo.fim_previsto)
           }
         />
-        {isQuadra && aluguelAtivo.com_extra && (
-          <DetailRow label="Extra" value="Bola incluída" />
-        )}
+        {isQuadra && extrasLabel && <DetailRow label="Extras" value={extrasLabel} />}
         <DetailRow label="RA" value={aluno?.ra ?? '—'} />
       </View>
     </ScrollView>
@@ -241,17 +192,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   progressFill: { height: '100%', backgroundColor: colors.progressFill, borderRadius: 3 },
-  devolverBtn: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 16,
-    ...card,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  devolverPressed: cardPressed(true),
-  devolverDisabled: { opacity: 0.6 },
-  devolverBtnText: { color: colors.primaryDark, fontSize: 15, fontWeight: '600' },
   detailsCard: {
     backgroundColor: colors.white,
     borderRadius: 12,

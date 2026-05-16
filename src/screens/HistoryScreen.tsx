@@ -16,6 +16,7 @@ import { colors } from '../theme/colors';
 import { border, card } from '../theme/ui';
 import type { AluguelComItem, ItemTipo } from '../types/database';
 import { formatDuration, formatRelativeDateTime } from '../utils/dates';
+import { getItemDisplay } from '../utils/itemDisplay';
 
 type Props = MainTabScreenProps<'History'>;
 type Filtro = 'todos' | ItemTipo;
@@ -108,7 +109,9 @@ function HistoryItem({
   aluguel: AluguelComItem;
   temMulta: boolean;
 }) {
-  const isQuadra = aluguel.itens.tipo === 'quadra';
+  const tipo = aluguel.itens.tipo as ItemTipo;
+  const display = getItemDisplay(tipo);
+  const temNumero = tipo === 'guarda_chuva';
   const duracao =
     aluguel.fim_real != null
       ? formatDuration(
@@ -120,7 +123,7 @@ function HistoryItem({
     <View style={styles.itemCard}>
       <View style={styles.itemIcon}>
         <Ionicons
-          name={isQuadra ? 'football-outline' : 'rainy-outline'}
+          name={display.icon}
           size={20}
           color={colors.primaryDark}
           accessibilityElementsHidden
@@ -128,8 +131,11 @@ function HistoryItem({
       </View>
       <View style={styles.itemBody}>
         <Text style={styles.itemTitle}>
-          {aluguel.itens.nome}
-          {!isQuadra ? ` #${aluguel.itens.numero}` : ''}
+          {!temNumero
+            ? aluguel.itens.nome
+            : aluguel.itens.nome.includes('#')
+              ? aluguel.itens.nome
+              : `${aluguel.itens.nome} #${aluguel.itens.numero}`}
         </Text>
         <Text style={styles.itemDate}>{formatRelativeDateTime(aluguel.inicio ?? '')}</Text>
       </View>

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
-  Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -14,6 +14,7 @@ import type { MainTabScreenProps } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { border } from '../theme/ui';
 import type { ItemTipo } from '../types/database';
+import { ITEM_DISPLAY } from '../utils/itemDisplay';
 
 type Props = MainTabScreenProps<'Scan'>;
 
@@ -42,12 +43,20 @@ export default function ScanScreen({ navigation, route }: Props) {
   }, [pulse]);
 
   const chips: { key: ItemTipo; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-    { key: 'quadra', label: 'Quadra A', icon: 'football-outline' },
-    { key: 'guarda_chuva', label: 'Guarda-chuva', icon: 'rainy-outline' },
+    { key: 'quadra', label: ITEM_DISPLAY.quadra.shortLabel, icon: ITEM_DISPLAY.quadra.icon },
+    {
+      key: 'guarda_chuva',
+      label: ITEM_DISPLAY.guarda_chuva.shortLabel,
+      icon: ITEM_DISPLAY.guarda_chuva.icon,
+    },
   ];
 
   return (
-    <View style={styles.screen}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+    >
       <BackButton onPress={() => navigation.navigate('Home' as const)} />
 
       <View style={styles.center}>
@@ -74,7 +83,7 @@ export default function ScanScreen({ navigation, route }: Props) {
               selected={isSelected}
               onPress={() => setSelected(chip.key)}
               accessibilityLabel={`Selecionar ${chip.label}`}
-              style={styles.chipFlex}
+              style={styles.chipItem}
             >
               <Ionicons
                 name={chip.icon}
@@ -95,13 +104,14 @@ export default function ScanScreen({ navigation, route }: Props) {
         onPress={() => navigation.getParent()?.navigate('Confirm', { item: selected })}
         style={styles.simulateSpacing}
       />
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.screenBg, padding: 16 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  screen: { flex: 1, backgroundColor: colors.screenBg },
+  scrollContent: { padding: 16, flexGrow: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 280 },
   pulseCircle: {
     width: 120,
     height: 120,
@@ -121,8 +131,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingHorizontal: 24,
   },
-  chips: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-  chipFlex: { flex: 1 },
+  chips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 20,
+  },
+  chipItem: { flexGrow: 1, flexBasis: '47%' },
   chipText: { fontSize: 13, color: colors.inactive, fontWeight: '500' },
   chipTextSelected: { color: colors.primaryDark },
   simulateSpacing: { marginBottom: 16 },

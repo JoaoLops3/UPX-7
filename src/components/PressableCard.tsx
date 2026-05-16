@@ -7,11 +7,12 @@ type Props = {
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
+  disabled?: boolean;
 };
 
-export function PressableCard({ children, onPress, style, accessibilityLabel }: Props) {
-  if (!onPress) {
-    return <View style={[styles.card, style]}>{children}</View>;
+export function PressableCard({ children, onPress, style, accessibilityLabel, disabled }: Props) {
+  if (!onPress || disabled) {
+    return <View style={[styles.card, disabled && styles.disabled, style]}>{children}</View>;
   }
 
   return (
@@ -30,4 +31,5 @@ const styles = StyleSheet.create({
     ...card,
     padding: 12,
   },
+  disabled: { opacity: 0.55 },
 });

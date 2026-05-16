@@ -7,6 +7,7 @@ export type RootStackParamList = {
   MainTabs: undefined;
   Confirm: { item: ItemTipo };
   Active: undefined;
+  Return: undefined;
   Fines: undefined;
 };
 

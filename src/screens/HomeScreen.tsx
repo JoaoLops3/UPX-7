@@ -9,6 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { LoadingView } from '../components/LoadingView';
+import { DevolverNfcButton } from '../components/DevolverNfcButton';
 import { PressableCard } from '../components/PressableCard';
 import { SupabaseErrorBanner } from '../components/SupabaseErrorBanner';
 import { useAlugueis } from '../hooks/useAlugueis';
@@ -26,10 +27,11 @@ import {
   formatTime,
 } from '../utils/dates';
 import { getInitials } from '../utils/initials';
+import { ITEM_DISPLAY } from '../utils/itemDisplay';
 
 type Props = MainTabScreenProps<'Home'>;
 
-const QUADRA_SLOTS = 8;
+const QUADRA_SLOTS = 10;
 
 export default function HomeScreen({ navigation }: Props) {
   const { aluno, loading: alunoLoading, error: alunoError, refetch: refetchAluno } = useAluno();
@@ -118,24 +120,27 @@ export default function HomeScreen({ navigation }: Props) {
       </View>
 
       {aluguelAtivo ? (
-        <Pressable
-          style={({ pressed }) => [styles.activeBanner, pressed && styles.pressedDark]}
-          onPress={() => navigation.getParent()?.navigate('Active')}
-          accessibilityLabel="Ver detalhes do aluguel ativo"
-        >
-          <Text style={styles.activeTitle}>{aluguelAtivo.itens.nome}</Text>
-          <Text style={styles.activeCountdown}>
-            {aluguelAtivo.itens.tipo === 'quadra'
-              ? countdown || '00:00:00'
-              : `${activeDaysLeft} dias restantes`}
-          </Text>
-          <Text style={styles.activeSubtitle}>
-            {aluguelAtivo.itens.tipo === 'quadra'
-              ? `Término às ${formatTime(aluguelAtivo.fim_previsto)}`
-              : `Devolver até ${formatDate(aluguelAtivo.fim_previsto)}`}
-          </Text>
-          <Text style={styles.activeLink}>Ver detalhes →</Text>
-        </Pressable>
+        <>
+          <Pressable
+            style={({ pressed }) => [styles.activeBanner, pressed && styles.pressedDark]}
+            onPress={() => navigation.navigate('Active')}
+            accessibilityLabel="Ver detalhes do aluguel ativo"
+          >
+            <Text style={styles.activeTitle}>{aluguelAtivo.itens.nome}</Text>
+            <Text style={styles.activeCountdown}>
+              {aluguelAtivo.itens.tipo === 'quadra'
+                ? countdown || '00:00:00'
+                : `${activeDaysLeft} dias restantes`}
+            </Text>
+            <Text style={styles.activeSubtitle}>
+              {aluguelAtivo.itens.tipo === 'quadra'
+                ? `Término às ${formatTime(aluguelAtivo.fim_previsto)}`
+                : `Devolver até ${formatDate(aluguelAtivo.fim_previsto)}`}
+            </Text>
+            <Text style={styles.activeLink}>Ver detalhes →</Text>
+          </Pressable>
+          <DevolverNfcButton />
+        </>
       ) : (
         <View style={styles.emptyActive}>
           <Text style={styles.emptyActiveText}>Nenhum aluguel ativo</Text>
@@ -182,14 +187,23 @@ export default function HomeScreen({ navigation }: Props) {
       >
         <View style={styles.cardRow}>
           <View style={styles.iconWrap}>
-            <Ionicons name="rainy-outline" size={22} color={colors.primaryDark} />
+            <Ionicons name={ITEM_DISPLAY.guarda_chuva.icon} size={22} color={colors.primaryDark} />
           </View>
           <View style={styles.cardBody}>
-            <Text style={styles.cardTitle}>Guarda-chuva</Text>
+            <Text style={styles.cardTitle}>{ITEM_DISPLAY.guarda_chuva.label}</Text>
             <Text style={styles.cardSub}>{guardaDisponiveis} disponíveis</Text>
           </View>
-          <View style={[styles.badge, styles.badgeFree]}>
-            <Text style={[styles.badgeText, styles.badgeTextFree]}>Livre</Text>
+          <View
+            style={[styles.badge, guardaDisponiveis > 0 ? styles.badgeFree : styles.badgeBusy]}
+          >
+            <Text
+              style={[
+                styles.badgeText,
+                guardaDisponiveis > 0 ? styles.badgeTextFree : styles.badgeTextBusy,
+              ]}
+            >
+              {guardaDisponiveis > 0 ? 'Livre' : 'Ocupado'}
+            </Text>
           </View>
         </View>
       </PressableCard>
@@ -209,7 +223,11 @@ export default function HomeScreen({ navigation }: Props) {
         </View>
         <View style={styles.slotsHours}>
           <Text style={styles.slotHour}>08h</Text>
+          <Text style={styles.slotHour}>10h</Text>
+          <Text style={styles.slotHour}>12h</Text>
+          <Text style={styles.slotHour}>14h</Text>
           <Text style={styles.slotHour}>16h</Text>
+          <Text style={styles.slotHour}>18h</Text>
         </View>
       </View>
     </ScrollView>
@@ -288,6 +306,15 @@ const styles = StyleSheet.create({
   slot: { flex: 1, height: 8, borderRadius: 4 },
   slotBusy: { backgroundColor: colors.primary },
   slotFree: { backgroundColor: colors.background },
-  slotsHours: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  slotHour: { fontSize: 10, color: colors.textMuted },
+  slotsHours: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  slotHour: {
+    fontSize: 11,
+    color: colors.textMuted,
+    fontWeight: '500',
+    fontVariant: ['tabular-nums'],
+  },
 });
