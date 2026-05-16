@@ -1,13 +1,15 @@
 import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { colors } from '../theme/colors';
-import { card, cardPressed } from '../theme/ui';
+import { border, card, cardPressed } from '../theme/ui';
 
 type Props = {
   style?: StyleProp<ViewStyle>;
+  /** Após o horário da quadra: destaque para devolução no totem. */
+  urgent?: boolean;
 };
 
-export function DevolverNfcButton({ style }: Props) {
+export function DevolverNfcButton({ style, urgent = false }: Props) {
   const navigation = useNavigation<any>();
 
   const handlePress = () => {
@@ -19,10 +21,23 @@ export function DevolverNfcButton({ style }: Props) {
     <Pressable
       onPress={handlePress}
       accessibilityRole="button"
-      accessibilityLabel="Devolver aproximando a carteirinha"
-      style={({ pressed }) => [styles.btn, pressed && cardPressed(true), style]}
+      accessibilityLabel={
+        urgent
+          ? 'Tempo esgotado. Aproxime a carteirinha no totem para liberar a quadra'
+          : 'Devolver aproximando a carteirinha'
+      }
+      style={({ pressed }) => [
+        styles.btn,
+        urgent && styles.btnUrgent,
+        pressed && (urgent ? styles.btnUrgentPressed : cardPressed(true)),
+        style,
+      ]}
     >
-      <Text style={styles.label}>Devolver — aproxime a carteirinha</Text>
+      <Text style={[styles.label, urgent && styles.labelUrgent]}>
+        {urgent
+          ? 'Tempo esgotado — aproxime o NFC no totem'
+          : 'Devolver — aproxime a carteirinha'}
+      </Text>
     </Pressable>
   );
 }
@@ -36,9 +51,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 16,
   },
+  btnUrgent: {
+    ...border,
+    backgroundColor: colors.warningBg,
+    borderColor: '#f59e0b',
+  },
+  btnUrgentPressed: {
+    backgroundColor: '#fef3c7',
+    borderColor: '#d97706',
+  },
   label: {
     color: colors.primaryDark,
     fontSize: 15,
     fontWeight: '600',
+    textAlign: 'center',
+  },
+  labelUrgent: {
+    color: '#92400e',
   },
 });

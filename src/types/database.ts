@@ -2,7 +2,7 @@ import type { Tables } from './supabase.generated';
 
 export type ItemTipo = 'quadra' | 'guarda_chuva';
 export type ExtraQuadra = 'futebol' | 'volei' | 'basquete';
-export type AluguelStatus = 'ativo' | 'devolvido' | 'atrasado';
+export type AluguelStatus = 'ativo' | 'devolvido' | 'atrasado' | 'aguardando_nfc';
 export type MultaStatus = 'pendente' | 'pago';
 
 /** Linhas do banco — geradas em supabase.generated.ts (regenerar via Supabase MCP). */

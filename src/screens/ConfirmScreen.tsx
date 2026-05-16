@@ -18,12 +18,21 @@ import type { RootStackScreenProps } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { border, card } from '../theme/ui';
 import type { ExtraQuadra, Item } from '../types/database';
-import { addDays, addMinutes, formatDate, formatTime } from '../utils/dates';
+import { addDays, formatDate, formatTime } from '../utils/dates';
 import { EXTRA_DISPLAY, EXTRA_KEYS, getItemDisplay } from '../utils/itemDisplay';
+import { fetchQuadraBookingsToday } from '../utils/quadraAgenda';
+import {
+  allowedQuadraDurations,
+  canRentQuadraToday,
+  computeQuadraFimPrevisto,
+  overlapsExistingBooking,
+  QUADRA_DURACOES_MIN,
+  type QuadraBooking,
+} from '../utils/quadraAvailability';
 
 type Props = RootStackScreenProps<'Confirm'>;
 
-const DURACOES = [30, 60, 90, 120] as const;
+const DURACOES = QUADRA_DURACOES_MIN;
 
 export default function ConfirmScreen({ navigation, route }: Props) {
   const tipo = route.params.item;
@@ -37,6 +46,7 @@ export default function ConfirmScreen({ navigation, route }: Props) {
     basquete: false,
   });
   const [submitting, setSubmitting] = useState(false);
+  const [quadraBookings, setQuadraBookings] = useState<QuadraBooking[]>([]);
 
   const fetchItem = useCallback(async () => {
     setLoadingItem(true);
@@ -55,11 +65,44 @@ export default function ConfirmScreen({ navigation, route }: Props) {
     fetchItem();
   }, [fetchItem]);
 
-  const duracaoMin = DURACOES[duracaoIdx];
+  useEffect(() => {
+    if (tipo !== 'quadra' || !item?.id) {
+      setQuadraBookings([]);
+      return;
+    }
+    void fetchQuadraBookingsToday(item.id).then(setQuadraBookings);
+  }, [tipo, item?.id]);
+
+  const duracoesPermitidas = useMemo(() => {
+    if (tipo !== 'quadra') return [...DURACOES];
+    return allowedQuadraDurations(quadraBookings);
+  }, [tipo, quadraBookings]);
+
+  useEffect(() => {
+    if (tipo !== 'quadra' || duracoesPermitidas.length === 0) return;
+    const current = DURACOES[duracaoIdx];
+    if (!duracoesPermitidas.includes(current)) {
+      const lastAllowed = duracoesPermitidas[duracoesPermitidas.length - 1];
+      const idx = DURACOES.indexOf(lastAllowed as (typeof DURACOES)[number]);
+      if (idx >= 0) setDuracaoIdx(idx);
+    }
+  }, [tipo, duracoesPermitidas, duracaoIdx]);
+
+  const duracaoMin = duracoesPermitidas.includes(DURACOES[duracaoIdx])
+    ? DURACOES[duracaoIdx]
+    : (duracoesPermitidas[duracoesPermitidas.length - 1] ?? DURACOES[0]);
+
   const fimPrevisto = useMemo(() => {
     const base = new Date();
-    return tipo === 'quadra' ? addMinutes(base, duracaoMin) : addDays(base, 7);
+    if (tipo === 'quadra') {
+      return computeQuadraFimPrevisto(base, duracaoMin);
+    }
+    return addDays(base, 7);
   }, [tipo, duracaoMin]);
+
+  const quadraBloqueada =
+    tipo === 'quadra' &&
+    (!canRentQuadraToday(quadraBookings) || duracoesPermitidas.length === 0);
 
   const duracaoLabel = useMemo(() => {
     if (duracaoMin === 30) return '30min';
@@ -76,14 +119,41 @@ export default function ConfirmScreen({ navigation, route }: Props) {
       return;
     }
 
+    if (tipo === 'quadra') {
+      const inicioCheck = new Date();
+      if (!canRentQuadraToday(quadraBookings, inicioCheck)) {
+        Alert.alert(
+          'Quadra indisponível',
+          'Não há horários para alugar hoje. Funcionamento até 22h; se já houver aluguel até esse horário, o dia encerra.',
+        );
+        return;
+      }
+      if (duracoesPermitidas.length === 0) {
+        Alert.alert(
+          'Quadra indisponível',
+          'Não há tempo suficiente antes das 22h ou do próximo agendamento.',
+        );
+        return;
+      }
+      const fimCheck = computeQuadraFimPrevisto(inicioCheck, duracaoMin);
+      if (overlapsExistingBooking(quadraBookings, inicioCheck, fimCheck)) {
+        Alert.alert('Horário ocupado', 'Outro aluguel já ocupa este período. Escolha outra duração.');
+        return;
+      }
+    }
+
     setSubmitting(true);
     const inicio = new Date().toISOString();
+    const fimSalvar =
+      tipo === 'quadra'
+        ? computeQuadraFimPrevisto(new Date(inicio), duracaoMin).toISOString()
+        : fimPrevisto.toISOString();
 
     const { error: insertError } = await supabase.from('alugueis').insert({
       aluno_id: aluno.id,
       item_id: item.id,
       inicio,
-      fim_previsto: fimPrevisto.toISOString(),
+      fim_previsto: fimSalvar,
       status: 'ativo',
       com_extra: tipo === 'quadra' ? extrasSelecionados.length > 0 : false,
       extras: tipo === 'quadra' ? extrasSelecionados : [],
@@ -145,12 +215,29 @@ export default function ConfirmScreen({ navigation, route }: Props) {
 
       {tipo === 'quadra' ? (
         <>
+          {quadraBloqueada ? (
+            <View style={styles.warningBox}>
+              <Text style={styles.warningText}>
+                A quadra não pode ser alugada agora. Horário de funcionamento: 8h às 22h. Aluguéis
+                não podem passar das 22h; se já houver reserva até esse horário, não há mais vagas
+                hoje.
+              </Text>
+            </View>
+          ) : null}
+
           <Text style={styles.sectionLabel}>Duração</Text>
           <View style={styles.durationRow}>
             <Pressable
               style={({ pressed }) => [styles.durationBtn, pressed && styles.durationPressed]}
-              onPress={() => setDuracaoIdx((i) => Math.max(0, i - 1))}
-              disabled={duracaoIdx === 0}
+              onPress={() => {
+                const pos = duracoesPermitidas.indexOf(duracaoMin);
+                if (pos > 0) {
+                  const prev = duracoesPermitidas[pos - 1];
+                  const idx = DURACOES.indexOf(prev as (typeof DURACOES)[number]);
+                  if (idx >= 0) setDuracaoIdx(idx);
+                }
+              }}
+              disabled={duracoesPermitidas.indexOf(duracaoMin) <= 0}
               accessibilityLabel="Diminuir duração"
             >
               <Text style={styles.durationBtnText}>−</Text>
@@ -158,8 +245,18 @@ export default function ConfirmScreen({ navigation, route }: Props) {
             <Text style={styles.durationValue}>{duracaoLabel}</Text>
             <Pressable
               style={({ pressed }) => [styles.durationBtn, pressed && styles.durationPressed]}
-              onPress={() => setDuracaoIdx((i) => Math.min(DURACOES.length - 1, i + 1))}
-              disabled={duracaoIdx === DURACOES.length - 1}
+              onPress={() => {
+                const pos = duracoesPermitidas.indexOf(duracaoMin);
+                if (pos >= 0 && pos < duracoesPermitidas.length - 1) {
+                  const next = duracoesPermitidas[pos + 1];
+                  const idx = DURACOES.indexOf(next as (typeof DURACOES)[number]);
+                  if (idx >= 0) setDuracaoIdx(idx);
+                }
+              }}
+              disabled={
+                duracoesPermitidas.indexOf(duracaoMin) < 0 ||
+                duracoesPermitidas.indexOf(duracaoMin) >= duracoesPermitidas.length - 1
+              }
               accessibilityLabel="Aumentar duração"
             >
               <Text style={styles.durationBtnText}>+</Text>
@@ -194,7 +291,7 @@ export default function ConfirmScreen({ navigation, route }: Props) {
           })}
 
           <Text style={styles.estimate}>
-            Término estimado: {formatTime(fimPrevisto.toISOString())}
+            Término estimado: {formatTime(fimPrevisto.toISOString())} (máx. 22h)
           </Text>
         </>
       ) : (
@@ -218,7 +315,7 @@ export default function ConfirmScreen({ navigation, route }: Props) {
           (submitting || !item) && styles.confirmDisabled,
         ]}
         onPress={handleConfirm}
-        disabled={submitting || !item}
+        disabled={submitting || !item || quadraBloqueada}
         accessibilityLabel="Confirmar aluguel"
       >
         {submitting ? (

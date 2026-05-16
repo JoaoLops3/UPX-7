@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -29,8 +30,22 @@ import {
 import { getInitials } from '../utils/initials';
 import { ITEM_DISPLAY } from '../utils/itemDisplay';
 import {
-  bookingEndForAluguel,
+  getQuadraAluguelPhase,
+  getQuadraGraceDeadline,
+  QUADRA_GRACE_MINUTES,
+} from '../lib/quadraAluguelTiming';
+import { fetchQuadraBookingsToday } from '../utils/quadraAgenda';
+import {
+  canRentQuadraToday,
   computeQuadraSlots,
+  formatHourLabel,
+  getQuadraUnavailableReason,
+  isQuadraBusyNow,
+  QUADRA_DAY_END_HOUR,
+  QUADRA_DAY_START_HOUR,
+  QUADRA_HOUR_LABELS,
+  quadraUnavailableLabel,
+  slotIndexForHourLabel,
   type QuadraBooking,
   type SlotState,
 } from '../utils/quadraAvailability';
@@ -67,37 +82,7 @@ export default function HomeScreen({ navigation }: Props) {
   }, []);
 
   const fetchQuadraAgenda = useCallback(async (quadraId: string) => {
-    const dayStart = new Date();
-    dayStart.setHours(0, 0, 0, 0);
-
-    const [{ data: active }, { data: today }] = await Promise.all([
-      supabase
-        .from('alugueis')
-        .select('inicio, fim_previsto, fim_real, status')
-        .eq('item_id', quadraId)
-        .eq('status', 'ativo'),
-      supabase
-        .from('alugueis')
-        .select('inicio, fim_previsto, fim_real, status')
-        .eq('item_id', quadraId)
-        .in('status', ['devolvido', 'atrasado'])
-        .gte('inicio', dayStart.toISOString()),
-    ]);
-
-    const rows = [...(active ?? []), ...(today ?? [])];
-    const seen = new Set<string>();
-    const bookings: QuadraBooking[] = [];
-
-    for (const row of rows) {
-      if (!row.inicio) continue;
-      const fim = bookingEndForAluguel(row);
-      const key = `${row.inicio}|${fim}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      bookings.push({ inicio: row.inicio, fim });
-    }
-
-    setQuadraBookings(bookings);
+    setQuadraBookings(await fetchQuadraBookingsToday(quadraId));
   }, []);
 
   const supabaseError = alunoError ?? alugueisError ?? itensError;
@@ -130,11 +115,20 @@ export default function HomeScreen({ navigation }: Props) {
     return () => clearInterval(id);
   }, []);
 
+  const quadraPhase = useMemo(
+    () => getQuadraAluguelPhase(aluguelAtivo),
+    [aluguelAtivo],
+  );
+
   useEffect(() => {
     if (!aluguelAtivo || aluguelAtivo.itens.tipo !== 'quadra') return;
 
     const tick = () => {
-      const remaining = new Date(aluguelAtivo.fim_previsto).getTime() - Date.now();
+      const phase = getQuadraAluguelPhase(aluguelAtivo);
+      const remaining =
+        phase === 'aguardando_nfc'
+          ? getQuadraGraceDeadline(aluguelAtivo.fim_previsto).getTime() - Date.now()
+          : new Date(aluguelAtivo.fim_previsto).getTime() - Date.now();
       setCountdown(formatCountdown(remaining));
     };
     tick();
@@ -144,7 +138,10 @@ export default function HomeScreen({ navigation }: Props) {
 
   useEffect(() => {
     if (quadraId) void fetchQuadraAgenda(quadraId);
-  }, [quadraId, fetchQuadraAgenda, aluguelAtivo?.id, aluguelAtivo?.fim_previsto]);
+    void fetchItens();
+  }, [quadraId, fetchQuadraAgenda, fetchItens, aluguelAtivo?.id, aluguelAtivo?.status]);
+
+  const quadra = useMemo(() => itens.find((i) => i.tipo === 'quadra'), [itens]);
 
   const quadraSlots = useMemo(
     () => computeQuadraSlots(quadraBookings, agendaNow),
@@ -152,12 +149,26 @@ export default function HomeScreen({ navigation }: Props) {
   );
 
   const quadraOcupadaAgora = useMemo(
-    () => quadraSlots.some((s) => s.state === 'busy'),
-    [quadraSlots],
+    () => isQuadraBusyNow(quadraBookings, agendaNow),
+    [quadraBookings, agendaNow],
+  );
+
+  const quadraPodeAlugar = useMemo(
+    () => canRentQuadraToday(quadraBookings, agendaNow) && Boolean(quadra?.disponivel),
+    [quadraBookings, agendaNow, quadra?.disponivel],
+  );
+
+  const quadraIndisponivel = useMemo(
+    () =>
+      getQuadraUnavailableReason(quadraBookings, Boolean(quadra?.disponivel), agendaNow),
+    [quadraBookings, quadra?.disponivel, agendaNow],
   );
 
   const agendaHint = useMemo(() => {
-    if (aluguelAtivo?.itens.tipo === 'quadra' && aluguelAtivo.inicio) {
+    if (aluguelAtivo?.itens.tipo === 'quadra' && quadraPhase === 'aguardando_nfc') {
+      return `Tempo esgotado · confirme no totem NFC (até ${QUADRA_GRACE_MINUTES} min)`;
+    }
+    if (aluguelAtivo?.itens.tipo === 'quadra' && aluguelAtivo.inicio && quadraPhase === 'em_uso') {
       return `Em uso · ${formatTime(aluguelAtivo.inicio)} – ${formatTime(aluguelAtivo.fim_previsto)}`;
     }
     if (quadraOcupadaAgora) {
@@ -172,13 +183,15 @@ export default function HomeScreen({ navigation }: Props) {
       }
       return 'Ocupada agora';
     }
+    if (quadraIndisponivel === 'closed') {
+      return 'Horário encerrado · funcionamento 8h às 22h';
+    }
     return null;
-  }, [aluguelAtivo, quadraOcupadaAgora, quadraBookings, agendaNow]);
+  }, [aluguelAtivo, quadraPhase, quadraOcupadaAgora, quadraIndisponivel, quadraBookings, agendaNow]);
 
   const loading = alunoLoading || alugueisLoading || itensLoading;
   if (loading) return <LoadingView />;
 
-  const quadra = itens.find((i) => i.tipo === 'quadra');
   const guardaChuvas = itens.filter((i) => i.tipo === 'guarda_chuva');
   const guardaDisponiveis = guardaChuvas.filter((i) => i.disponivel).length;
 
@@ -215,24 +228,35 @@ export default function HomeScreen({ navigation }: Props) {
       {aluguelAtivo ? (
         <>
           <Pressable
-            style={({ pressed }) => [styles.activeBanner, pressed && styles.pressedDark]}
+            style={({ pressed }) => [
+              styles.activeBanner,
+              quadraPhase === 'aguardando_nfc' && styles.activeBannerUrgent,
+              pressed && styles.pressedDark,
+            ]}
             onPress={() => navigation.navigate('Active')}
             accessibilityLabel="Ver detalhes do aluguel ativo"
           >
             <Text style={styles.activeTitle}>{aluguelAtivo.itens.nome}</Text>
-            <Text style={styles.activeCountdown}>
+            <Text
+              style={[
+                styles.activeCountdown,
+                quadraPhase === 'aguardando_nfc' && styles.activeCountdownUrgent,
+              ]}
+            >
               {aluguelAtivo.itens.tipo === 'quadra'
                 ? countdown || '00:00:00'
                 : `${activeDaysLeft} dias restantes`}
             </Text>
             <Text style={styles.activeSubtitle}>
-              {aluguelAtivo.itens.tipo === 'quadra'
-                ? `Término às ${formatTime(aluguelAtivo.fim_previsto)}`
-                : `Devolver até ${formatDate(aluguelAtivo.fim_previsto)}`}
+              {aluguelAtivo.itens.tipo === 'quadra' && quadraPhase === 'aguardando_nfc'
+                ? `Tempo esgotado — use o NFC no totem (${QUADRA_GRACE_MINUTES} min para confirmar)`
+                : aluguelAtivo.itens.tipo === 'quadra'
+                  ? `Término às ${formatTime(aluguelAtivo.fim_previsto)}`
+                  : `Devolver até ${formatDate(aluguelAtivo.fim_previsto)}`}
             </Text>
             <Text style={styles.activeLink}>Ver detalhes →</Text>
           </Pressable>
-          <DevolverNfcButton />
+          <DevolverNfcButton urgent={quadraPhase === 'aguardando_nfc'} />
         </>
       ) : (
         <View style={styles.emptyActive}>
@@ -243,7 +267,8 @@ export default function HomeScreen({ navigation }: Props) {
       <Text style={styles.sectionTitle}>Itens disponíveis</Text>
 
       <PressableCard
-        onPress={() => navigateScan('quadra')}
+        onPress={quadraPodeAlugar ? () => navigateScan('quadra') : undefined}
+        disabled={!quadraPodeAlugar}
         accessibilityLabel="Alugar quadra"
         style={styles.cardSpacing}
       >
@@ -253,23 +278,28 @@ export default function HomeScreen({ navigation }: Props) {
           </View>
           <View style={styles.cardBody}>
             <Text style={styles.cardTitle}>{quadra?.nome ?? 'Quadra A'}</Text>
-            <Text style={styles.cardSub}>{quadra?.localizacao ?? 'Campus Facens'}</Text>
+            <Text style={styles.cardSub}>
+              {quadraPodeAlugar
+                ? (quadra?.localizacao ?? 'Campus Facens')
+                : quadraIndisponivel === 'closed'
+                  ? 'Sem horários hoje · último slot 22h'
+                  : 'Em uso no momento'}
+            </Text>
           </View>
           <View
-            style={[
-              styles.badge,
-              quadraOcupadaAgora || !quadra?.disponivel ? styles.badgeBusy : styles.badgeFree,
-            ]}
+            style={[styles.badge, quadraPodeAlugar ? styles.badgeFree : styles.badgeBusy]}
           >
             <Text
               style={[
                 styles.badgeText,
-                quadraOcupadaAgora || !quadra?.disponivel
-                  ? styles.badgeTextBusy
-                  : styles.badgeTextFree,
+                quadraPodeAlugar ? styles.badgeTextFree : styles.badgeTextBusy,
               ]}
             >
-              {quadraOcupadaAgora || !quadra?.disponivel ? 'Ocupado' : 'Livre'}
+              {quadraPodeAlugar
+                ? 'Livre'
+                : quadraIndisponivel
+                  ? quadraUnavailableLabel(quadraIndisponivel)
+                  : 'Ocupado'}
             </Text>
           </View>
         </View>
@@ -306,14 +336,29 @@ export default function HomeScreen({ navigation }: Props) {
       <View style={styles.slotsCard}>
         <Text style={styles.slotsLabel}>Disponibilidade da quadra hoje</Text>
         {agendaHint ? <Text style={styles.slotsHint}>{agendaHint}</Text> : null}
-        <View style={styles.slotsRow}>
-          {quadraSlots.map((slot) => (
-            <View key={slot.index} style={styles.slotColumn}>
-              <Text style={styles.slotHourTop}>{slot.hourLabel ?? ' '}</Text>
-              <View style={[styles.slot, slotStyleFor(slot.state)]} />
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={Platform.OS === 'web'}
+          style={styles.slotsScrollView}
+          contentContainerStyle={styles.slotsScroll}
+        >
+          <View style={styles.slotsTimeline}>
+            <View style={styles.slotsRow}>
+              {QUADRA_HOUR_LABELS.map((hour) => {
+                const slot = quadraSlots[slotIndexForHourLabel(hour)];
+
+                return (
+                  <View key={hour} style={styles.slotColumn}>
+                    <Text style={styles.slotHourTop}>{formatHourLabel(hour)}</Text>
+                    {slot ? (
+                      <View style={[styles.slot, slotStyleFor(slot.state)]} />
+                    ) : null}
+                  </View>
+                );
+              })}
             </View>
-          ))}
-        </View>
+          </View>
+        </ScrollView>
       </View>
     </ScrollView>
   );
@@ -341,6 +386,9 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 20,
   },
+  activeBannerUrgent: {
+    backgroundColor: '#92400e',
+  },
   pressedDark: { opacity: 0.9 },
   activeTitle: { color: colors.white, fontSize: 16, fontWeight: '600' },
   activeCountdown: {
@@ -349,6 +397,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
     marginVertical: 6,
+  },
+  activeCountdownUrgent: {
+    color: '#fef3c7',
   },
   activeSubtitle: { color: 'rgba(255,255,255,0.8)', fontSize: 13 },
   activeLink: { color: colors.progressFill, fontSize: 13, marginTop: 10, fontWeight: '600' },
@@ -394,18 +445,40 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontVariant: ['tabular-nums'],
   },
-  slotsRow: { flexDirection: 'row', gap: 6, justifyContent: 'space-between' },
-  slotColumn: { flex: 1, alignItems: 'center' },
+  slotsScrollView: Platform.select({
+    web: {
+      marginBottom: 4,
+    },
+    default: {},
+  }),
+  slotsScroll: {
+    alignItems: 'flex-start',
+  },
+  slotsTimeline: Platform.select({
+    web: {
+      paddingBottom: 16,
+    },
+    default: {},
+  }),
+  slotsRow: {
+    flexDirection: 'row',
+    gap: 3,
+    paddingHorizontal: 2,
+  },
+  slotColumn: {
+    alignItems: 'center',
+    minWidth: 22,
+  },
   slotHourTop: {
-    fontSize: 10,
+    fontSize: 9,
     color: colors.textMuted,
     fontWeight: '500',
     fontVariant: ['tabular-nums'],
     marginBottom: 4,
-    minHeight: 14,
+    minHeight: 12,
     textAlign: 'center',
   },
-  slot: { alignSelf: 'stretch', width: '100%', height: 8, borderRadius: 4 },
+  slot: { width: 20, height: 8, borderRadius: 4 },
   slotBusy: { backgroundColor: colors.primary },
   slotFree: { backgroundColor: colors.background },
   slotPast: { backgroundColor: '#e2e8f0' },

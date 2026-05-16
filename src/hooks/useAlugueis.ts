@@ -2,6 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { AluguelComItem } from '../types/database';
+import {
+  isAluguelPendenteParaAluno,
+  syncAllQuadraAlugueisTiming,
+} from '../lib/quadraAluguelTiming';
 import { getSupabaseErrorMessage } from '../utils/supabaseError';
 
 export function useAlugueis(alunoId: string) {
@@ -9,7 +13,7 @@ export function useAlugueis(alunoId: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchAlugueis = useCallback(async () => {
+  const fetchAlugueis = useCallback(async (skipSync = false) => {
     if (!alunoId) {
       setAlugueis([]);
       setLoading(false);
@@ -27,12 +31,21 @@ export function useAlugueis(alunoId: string) {
     if (fetchError) {
       setError(getSupabaseErrorMessage(fetchError));
       setAlugueis([]);
-    } else {
-      setError(null);
-      setAlugueis((data as AluguelComItem[]) ?? []);
+      setLoading(false);
+      return false;
     }
+
+    const rows = (data as AluguelComItem[]) ?? [];
+
+    if (!skipSync && (await syncAllQuadraAlugueisTiming(rows))) {
+      setLoading(false);
+      return fetchAlugueis(true);
+    }
+
+    setError(null);
+    setAlugueis(rows);
     setLoading(false);
-    return !fetchError;
+    return true;
   }, [alunoId]);
 
   useEffect(() => {
@@ -62,9 +75,22 @@ export function useAlugueis(alunoId: string) {
   }, [fetchAlugueis, alunoId]);
 
   const aluguelAtivo = useMemo(
-    () => alugueis.find((a) => a.status === 'ativo') ?? null,
+    () => alugueis.find((a) => isAluguelPendenteParaAluno(a)) ?? null,
     [alugueis],
   );
+
+  useEffect(() => {
+    if (!aluguelAtivo || aluguelAtivo.itens.tipo !== 'quadra') return;
+    if (aluguelAtivo.status !== 'ativo' && aluguelAtivo.status !== 'aguardando_nfc') {
+      return;
+    }
+
+    const id = setInterval(() => {
+      void fetchAlugueis();
+    }, 15_000);
+
+    return () => clearInterval(id);
+  }, [aluguelAtivo?.id, aluguelAtivo?.status, aluguelAtivo?.itens.tipo, fetchAlugueis]);
 
   return { alugueis, loading, aluguelAtivo, error, refetch: fetchAlugueis };
 }

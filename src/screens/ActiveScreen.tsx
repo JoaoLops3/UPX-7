@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  getQuadraAluguelPhase,
+  getQuadraGraceDeadline,
+  QUADRA_GRACE_MINUTES,
+} from '../lib/quadraAluguelTiming';
+import {
   Alert,
   Pressable,
   ScrollView,
@@ -33,10 +38,19 @@ export default function ActiveScreen({ navigation }: Props) {
   const { aluguelAtivo, loading } = useAlugueis(aluno?.id ?? '');
   const [countdown, setCountdown] = useState('00:00:00');
 
+  const quadraPhase = useMemo(
+    () => getQuadraAluguelPhase(aluguelAtivo),
+    [aluguelAtivo],
+  );
+
   useEffect(() => {
     if (!aluguelAtivo || aluguelAtivo.itens.tipo !== 'quadra') return;
     const tick = () => {
-      const remaining = new Date(aluguelAtivo.fim_previsto).getTime() - Date.now();
+      const phase = getQuadraAluguelPhase(aluguelAtivo);
+      const remaining =
+        phase === 'aguardando_nfc'
+          ? getQuadraGraceDeadline(aluguelAtivo.fim_previsto).getTime() - Date.now()
+          : new Date(aluguelAtivo.fim_previsto).getTime() - Date.now();
       setCountdown(formatCountdown(remaining));
     };
     tick();
@@ -93,12 +107,28 @@ export default function ActiveScreen({ navigation }: Props) {
         </Pressable>
       </View>
 
-      <View style={styles.heroCard}>
+      <View
+        style={[styles.heroCard, quadraPhase === 'aguardando_nfc' && styles.heroCardUrgent]}
+      >
         <Text style={styles.heroTitle}>{aluguelAtivo.itens.nome}</Text>
         <Text style={styles.heroLoc}>{aluguelAtivo.itens.localizacao}</Text>
 
+        {isQuadra && quadraPhase === 'aguardando_nfc' ? (
+          <Text style={styles.expiredHint}>
+            Tempo esgotado — aproxime o NFC no totem para confirmar a devolução (
+            {QUADRA_GRACE_MINUTES} min)
+          </Text>
+        ) : null}
+
         {isQuadra ? (
-          <Text style={styles.countdown}>{countdown}</Text>
+          <Text
+            style={[
+              styles.countdown,
+              quadraPhase === 'aguardando_nfc' && styles.countdownUrgent,
+            ]}
+          >
+            {countdown}
+          </Text>
         ) : (
           <>
             <Text style={styles.daysLeft}>{diasRestantes} dias restantes</Text>
@@ -114,17 +144,19 @@ export default function ActiveScreen({ navigation }: Props) {
         </View>
       </View>
 
-      <DevolverNfcButton />
+      <DevolverNfcButton urgent={quadraPhase === 'aguardando_nfc'} />
 
       <View style={styles.detailsCard}>
         <Text style={styles.detailsTitle}>Detalhes</Text>
         <DetailRow label="Início" value={formatDateTime(aluguelAtivo.inicio ?? '')} />
         <DetailRow
-          label="Devolver até"
+          label={quadraPhase === 'aguardando_nfc' ? 'Confirmar no totem até' : 'Devolver até'}
           value={
-            isQuadra
-              ? `${formatDate(aluguelAtivo.fim_previsto)} · ${formatTime(aluguelAtivo.fim_previsto)}`
-              : formatDate(aluguelAtivo.fim_previsto)
+            isQuadra && quadraPhase === 'aguardando_nfc'
+              ? formatDateTime(getQuadraGraceDeadline(aluguelAtivo.fim_previsto).toISOString())
+              : isQuadra
+                ? `${formatDate(aluguelAtivo.fim_previsto)} · ${formatTime(aluguelAtivo.fim_previsto)}`
+                : formatDate(aluguelAtivo.fim_previsto)
           }
         />
         {isQuadra && extrasLabel && <DetailRow label="Extras" value={extrasLabel} />}
@@ -159,6 +191,17 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 16,
   },
+  heroCardUrgent: {
+    backgroundColor: '#92400e',
+  },
+  expiredHint: {
+    color: '#fef3c7',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 12,
+    lineHeight: 20,
+  },
   heroTitle: { color: colors.white, fontSize: 18, fontWeight: '600' },
   heroLoc: { color: 'rgba(255,255,255,0.75)', fontSize: 13, marginTop: 4 },
   countdown: {
@@ -168,6 +211,9 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     marginVertical: 16,
     textAlign: 'center',
+  },
+  countdownUrgent: {
+    color: '#fde68a',
   },
   daysLeft: {
     color: colors.white,
