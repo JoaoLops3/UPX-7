@@ -86,3 +86,16 @@ export function daysBetween(start: Date, end: Date): number {
   const diff = end.getTime() - start.getTime();
   return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
 }
+
+const weekdayFormatter = new Intl.DateTimeFormat('pt-BR', { weekday: 'short' });
+
+export function formatWeekdayShort(date: Date): string {
+  return weekdayFormatter.format(date).replace('.', '');
+}
+
+export function formatDayMonth(date: Date): string {
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+  }).format(date);
+}

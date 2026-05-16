@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   ScrollView,
@@ -10,26 +10,51 @@ import { Ionicons } from '@expo/vector-icons';
 import { BackButton } from '../components/BackButton';
 import { ChipButton } from '../components/ChipButton';
 import { PrimaryButton } from '../components/PrimaryButton';
-import type { MainTabScreenProps } from '../navigation/types';
+import { useAlugueis } from '../hooks/useAlugueis';
+import { useAluno } from '../hooks/useAluno';
+import { useQuadraCheckIn } from '../hooks/useQuadraCheckIn';
+import {
+  activateQuadraReserva,
+  findAgendadoForCheckIn,
+  validateCheckInWindow,
+} from '../lib/quadraReserva';
+import { supabase } from '../lib/supabase';
+import { navigateRoot, navigateToHomeTab } from '../navigation/rootNavigation';
+import type { ScanStackScreenProps } from '../navigation/types';
+import { showAlert } from '../utils/alert';
 import { colors } from '../theme/colors';
 import { border } from '../theme/ui';
 import type { ItemTipo } from '../types/database';
 import { ITEM_DISPLAY } from '../utils/itemDisplay';
 
-type Props = MainTabScreenProps<'Scan'>;
+type Props = ScanStackScreenProps<'ScanMain'>;
 
-// Fluxo real em produção:
-// ESP32 lê cartão NFC → grava em logs_nfc no Supabase → app escuta via Realtime → navega automaticamente.
+// ESP32 lê cartão NFC → grava em logs_nfc no Supabase → app escuta via Realtime → check-in ou confirma aluguel.
 export default function ScanScreen({ navigation, route }: Props) {
   const initialItem = route.params?.item ?? 'quadra';
   const [selected, setSelected] = useState<ItemTipo>(initialItem);
+  const [quadraId, setQuadraId] = useState<string | null>(null);
   const pulse = useRef(new Animated.Value(1)).current;
+  const { aluno } = useAluno();
+  const { refetch } = useAlugueis(aluno?.id ?? '');
 
   useEffect(() => {
     if (route.params?.item) {
       setSelected(route.params.item);
     }
   }, [route.params?.item]);
+
+  useEffect(() => {
+    void (async () => {
+      const { data } = await supabase
+        .from('itens')
+        .select('id')
+        .eq('tipo', 'quadra')
+        .limit(1)
+        .maybeSingle();
+      setQuadraId(data?.id ?? null);
+    })();
+  }, []);
 
   useEffect(() => {
     const animation = Animated.loop(
@@ -42,6 +67,19 @@ export default function ScanScreen({ navigation, route }: Props) {
     return () => animation.stop();
   }, [pulse]);
 
+  const goActive = useCallback(() => {
+    void refetch();
+    navigateRoot('Active');
+  }, [refetch]);
+
+  useQuadraCheckIn({
+    alunoId: aluno?.id ?? '',
+    uidNfc: aluno?.uid_nfc,
+    quadraItemId: quadraId,
+    enabled: selected === 'quadra' && Boolean(aluno?.id && quadraId),
+    onActivated: goActive,
+  });
+
   const chips: { key: ItemTipo; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
     { key: 'quadra', label: ITEM_DISPLAY.quadra.shortLabel, icon: ITEM_DISPLAY.quadra.icon },
     {
@@ -51,13 +89,40 @@ export default function ScanScreen({ navigation, route }: Props) {
     },
   ];
 
+  const handleSimulate = async () => {
+    if (selected === 'guarda_chuva') {
+      navigateRoot('Confirm', { item: selected, mode: 'now' });
+      return;
+    }
+
+    if (!aluno?.id || !quadraId) return;
+
+    const reserva = await findAgendadoForCheckIn(aluno.id, quadraId);
+    if (reserva?.inicio) {
+      const windowCheck = validateCheckInWindow(reserva.inicio, reserva.fim_previsto);
+      if (!windowCheck.ok) {
+        showAlert('Check-in', windowCheck.message);
+        return;
+      }
+      const result = await activateQuadraReserva(reserva.id, quadraId);
+      if (result.ok) {
+        goActive();
+        return;
+      }
+      showAlert('Check-in', result.message);
+      return;
+    }
+
+    navigateRoot('Confirm', { item: 'quadra', mode: 'now' });
+  };
+
   return (
     <ScrollView
       style={styles.screen}
       contentContainerStyle={styles.scrollContent}
       keyboardShouldPersistTaps="handled"
     >
-      <BackButton onPress={() => navigation.navigate('Home' as const)} />
+      <BackButton onPress={() => navigateToHomeTab()} />
 
       <View style={styles.center}>
         <Animated.View style={[styles.pulseCircle, { transform: [{ scale: pulse }] }]}>
@@ -70,7 +135,9 @@ export default function ScanScreen({ navigation, route }: Props) {
         </Animated.View>
         <Text style={styles.title}>Aproxime a carteirinha</Text>
         <Text style={styles.subtitle}>
-          Leve o cartão ao totem NFC para iniciar o aluguel
+          {selected === 'quadra'
+            ? 'Com reserva: ativa o horário. Sem reserva: inicia aluguel imediato.'
+            : 'Leve o cartão ao totem NFC para iniciar o aluguel'}
         </Text>
       </View>
 
@@ -100,8 +167,8 @@ export default function ScanScreen({ navigation, route }: Props) {
       </View>
 
       <PrimaryButton
-        label="Simular leitura NFC"
-        onPress={() => navigation.getParent()?.navigate('Confirm', { item: selected })}
+        label={selected === 'quadra' ? 'Simular leitura NFC' : 'Simular leitura NFC'}
+        onPress={() => void handleSimulate()}
         style={styles.simulateSpacing}
       />
     </ScrollView>

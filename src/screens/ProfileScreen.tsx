@@ -13,13 +13,14 @@ import { useAlugueis } from '../hooks/useAlugueis';
 import { useAluno } from '../hooks/useAluno';
 import { useMultas } from '../hooks/useMultas';
 import { useAuth } from '../contexts/AuthContext';
-import type { MainTabScreenProps } from '../navigation/types';
+import { navigateRoot } from '../navigation/rootNavigation';
+import type { ProfileStackScreenProps } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { border, card, cardPressed } from '../theme/ui';
 import { formatDuration } from '../utils/dates';
 import { getInitials } from '../utils/initials';
 
-type Props = MainTabScreenProps<'Profile'>;
+type Props = ProfileStackScreenProps<'ProfileMain'>;
 
 export default function ProfileScreen({ navigation }: Props) {
   const { signOut } = useAuth();
@@ -65,7 +66,7 @@ export default function ProfileScreen({ navigation }: Props) {
         <StatCard label="Tempo total" value={tempoTotal} />
         <Pressable
           style={({ pressed }) => [styles.statCard, pressed && styles.statPressed]}
-          onPress={() => navigation.getParent()?.navigate('Fines')}
+          onPress={() => navigateRoot('Fines')}
           accessibilityLabel="Ver multas pendentes"
         >
           <Text style={[styles.statValue, pendentes > 0 && styles.statDanger]}>
@@ -81,7 +82,7 @@ export default function ProfileScreen({ navigation }: Props) {
           iconColor={colors.dangerText}
           label="Minhas multas"
           badge={pendentes > 0 ? String(pendentes) : undefined}
-          onPress={() => navigation.getParent()?.navigate('Fines')}
+          onPress={() => navigateRoot('Fines')}
         />
         <MenuItem
           icon="card-outline"

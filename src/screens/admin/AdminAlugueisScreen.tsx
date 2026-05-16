@@ -73,6 +73,12 @@ export default function AdminAlugueisScreen(_props: Props) {
           const aluno = (item as AluguelComItem & { alunos?: { nome: string; ra: string } }).alunos;
           const display = getItemDisplay(item.itens?.tipo ?? 'quadra');
           const ativo = item.status === 'ativo' || item.status === 'aguardando_nfc';
+          const badgeLabel =
+            item.status === 'agendado'
+              ? 'Agendado'
+              : item.status === 'cancelado'
+                ? 'Cancelado'
+                : (item.status ?? '—');
           return (
             <Pressable
               onPress={() => ativo && encerrar(item)}
@@ -82,15 +88,19 @@ export default function AdminAlugueisScreen(_props: Props) {
               <AdminListCard
                 title={`${display.label} · ${aluno?.nome ?? '—'}`}
                 subtitle={`RA ${aluno?.ra ?? '—'} · ${item.inicio ? formatDateTime(item.inicio) : '—'} → ${formatTime(item.fim_previsto)}`}
-                badge={item.status ?? '—'}
+                badge={badgeLabel}
                 badgeTone={
                   item.status === 'ativo'
                     ? 'success'
                     : item.status === 'aguardando_nfc'
                       ? 'warning'
-                      : item.status === 'atrasado'
-                        ? 'danger'
-                        : 'default'
+                      : item.status === 'agendado'
+                        ? 'default'
+                        : item.status === 'atrasado'
+                          ? 'danger'
+                          : item.status === 'cancelado'
+                            ? 'default'
+                            : 'default'
                 }
               />
             </Pressable>

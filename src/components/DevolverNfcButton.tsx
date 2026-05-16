@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { navigateToReturn } from '../navigation/rootNavigation';
 import { colors } from '../theme/colors';
 import { border, card, cardPressed } from '../theme/ui';
 
@@ -10,11 +10,8 @@ type Props = {
 };
 
 export function DevolverNfcButton({ style, urgent = false }: Props) {
-  const navigation = useNavigation<any>();
-
   const handlePress = () => {
-    const parent = navigation.getParent?.();
-    (parent ?? navigation).navigate('Return');
+    navigateToReturn();
   };
 
   return (

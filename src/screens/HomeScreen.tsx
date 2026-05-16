@@ -19,7 +19,9 @@ import { useAluno } from '../hooks/useAluno';
 import { useWeather } from '../hooks/useWeather';
 import { supabase } from '../lib/supabase';
 import { getSupabaseErrorMessage } from '../utils/supabaseError';
-import type { MainTabScreenProps } from '../navigation/types';
+import { navigateRoot, navigateToScan } from '../navigation/rootNavigation';
+import type { HomeStackScreenProps } from '../navigation/types';
+import { showAlert, showConfirm } from '../utils/alert';
 import { colors } from '../theme/colors';
 import { card } from '../theme/ui';
 import type { Item, ItemTipo } from '../types/database';
@@ -31,6 +33,10 @@ import {
 } from '../utils/dates';
 import { getInitials } from '../utils/initials';
 import { ITEM_DISPLAY } from '../utils/itemDisplay';
+import {
+  cancelarReservaAgendada,
+  isReservaHoje,
+} from '../lib/quadraReserva';
 import {
   getQuadraAluguelPhase,
   getQuadraGraceDeadline,
@@ -52,13 +58,14 @@ import {
   type SlotState,
 } from '../utils/quadraAvailability';
 
-type Props = MainTabScreenProps<'Home'>;
+type Props = HomeStackScreenProps<'HomeMain'>;
 
 export default function HomeScreen({ navigation }: Props) {
   const { aluno, loading: alunoLoading, error: alunoError, refetch: refetchAluno } = useAluno();
   const alunoId = aluno?.id ?? '';
   const {
     aluguelAtivo,
+    reservaQuadra,
     loading: alugueisLoading,
     error: alugueisError,
     refetch: refetchAlugueis,
@@ -96,17 +103,41 @@ export default function HomeScreen({ navigation }: Props) {
     void fetchItens();
   };
 
+  const quadraId = useMemo(
+    () => itens.find((i) => i.tipo === 'quadra')?.id,
+    [itens],
+  );
+
+  const executarCancelamentoReserva = useCallback(async () => {
+    const reserva = reservaQuadra;
+    if (!reserva?.aluno_id || !reserva.item_id) return;
+    const confirmou = await showConfirm(
+      'Deseja cancelar esta reserva? O horário voltará a ficar disponível para outros alunos.',
+      'Cancelar reserva',
+    );
+    if (!confirmou) return;
+
+    const result = await cancelarReservaAgendada({
+      id: reserva.id,
+      aluno_id: reserva.aluno_id,
+      item_id: reserva.item_id,
+    });
+    if (!result.ok) {
+      showAlert('Erro', result.message ?? 'Não foi possível cancelar.');
+      return;
+    }
+
+    await refetchAlugueis(true);
+    if (quadraId) await fetchQuadraAgenda(quadraId);
+    showAlert('Reserva cancelada', 'O horário foi liberado na agenda.');
+  }, [reservaQuadra, refetchAlugueis, quadraId, fetchQuadraAgenda]);
+
   useFocusEffect(
     useCallback(() => {
       fetchItens();
       void refetchAlugueis();
       void refreshWeather();
     }, [fetchItens, refetchAlugueis, refreshWeather]),
-  );
-
-  const quadraId = useMemo(
-    () => itens.find((i) => i.tipo === 'quadra')?.id,
-    [itens],
   );
 
   useFocusEffect(
@@ -201,7 +232,21 @@ export default function HomeScreen({ navigation }: Props) {
   const guardaDisponiveis = guardaChuvas.filter((i) => i.disponivel).length;
 
   const navigateScan = (item: ItemTipo) => {
-    navigation.navigate('Scan', { item });
+    navigateToScan(item);
+  };
+
+  const handleReservaPress = () => {
+    if (!reservaQuadra?.inicio) return;
+    if (isReservaHoje(reservaQuadra)) {
+      navigateScan('quadra');
+      return;
+    }
+    const detalhe = `${formatDate(reservaQuadra.inicio)} · ${formatTime(reservaQuadra.inicio)} – ${formatTime(reservaQuadra.fim_previsto)}`;
+    showAlert('Sua reserva', detalhe, [{ text: 'Fechar', style: 'default' }]);
+  };
+
+  const goQuadraReserva = () => {
+    navigateRoot('QuadraReserva');
   };
 
   const activeDaysLeft =
@@ -247,7 +292,7 @@ export default function HomeScreen({ navigation }: Props) {
               quadraPhase === 'aguardando_nfc' && styles.activeBannerUrgent,
               pressed && styles.pressedDark,
             ]}
-            onPress={() => navigation.navigate('Active')}
+            onPress={() => navigateRoot('Active')}
             accessibilityLabel="Ver detalhes do aluguel ativo"
           >
             <Text style={styles.activeTitle}>{aluguelAtivo.itens.nome}</Text>
@@ -272,20 +317,53 @@ export default function HomeScreen({ navigation }: Props) {
           </Pressable>
           <DevolverNfcButton urgent={quadraPhase === 'aguardando_nfc'} />
         </>
+      ) : reservaQuadra ? (
+        <View style={styles.reservaBanner}>
+          <Pressable
+            style={({ pressed }) => [pressed && styles.pressedDark]}
+            onPress={handleReservaPress}
+            accessibilityLabel="Ver reserva da quadra"
+          >
+            <Text style={styles.reservaTitle}>Reserva da quadra</Text>
+            <Text style={styles.reservaWhen}>
+              {formatDate(reservaQuadra.inicio ?? '')} · {formatTime(reservaQuadra.inicio ?? '')} –{' '}
+              {formatTime(reservaQuadra.fim_previsto)}
+            </Text>
+            <Text style={styles.reservaHint}>
+              {isReservaHoje(reservaQuadra)
+                ? 'Faça check-in no totem NFC no horário'
+                : 'Toque para ver detalhes'}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => void executarCancelamentoReserva()}
+            accessibilityLabel="Cancelar reserva da quadra"
+            style={styles.reservaCancelLink}
+          >
+            <Text style={styles.reservaCancelText}>Cancelar reserva</Text>
+          </Pressable>
+        </View>
       ) : (
         <View style={styles.emptyActive}>
           <Text style={styles.emptyActiveText}>Nenhum aluguel ativo</Text>
         </View>
       )}
 
+      {reservaQuadra && aluguelAtivo ? (
+        <Pressable
+          style={({ pressed }) => [styles.reservaBannerCompact, pressed && styles.pressedDark]}
+          onPress={handleReservaPress}
+        >
+          <Text style={styles.reservaCompactText}>
+            Próxima reserva: {formatDate(reservaQuadra.inicio ?? '')} às{' '}
+            {formatTime(reservaQuadra.inicio ?? '')}
+          </Text>
+        </Pressable>
+      ) : null}
+
       <Text style={styles.sectionTitle}>Itens disponíveis</Text>
 
-      <PressableCard
-        onPress={quadraPodeAlugar ? () => navigateScan('quadra') : undefined}
-        disabled={!quadraPodeAlugar}
-        accessibilityLabel="Alugar quadra"
-        style={styles.cardSpacing}
-      >
+      <View style={[styles.cardSpacing, styles.quadraCard]}>
         <View style={styles.cardRow}>
           <View style={styles.iconWrap}>
             <Ionicons name="football-outline" size={22} color={colors.primaryDark} />
@@ -317,7 +395,40 @@ export default function HomeScreen({ navigation }: Props) {
             </Text>
           </View>
         </View>
-      </PressableCard>
+        <View style={styles.quadraActions}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.quadraActionBtn,
+              styles.quadraActionPrimary,
+              !quadraPodeAlugar && styles.quadraActionDisabled,
+              pressed && quadraPodeAlugar && styles.quadraActionPressed,
+            ]}
+            onPress={() => quadraPodeAlugar && navigateScan('quadra')}
+            disabled={!quadraPodeAlugar}
+            accessibilityLabel="Alugar quadra agora"
+          >
+            <Text
+              style={[
+                styles.quadraActionText,
+                styles.quadraActionTextPrimary,
+                !quadraPodeAlugar && styles.quadraActionTextDisabled,
+              ]}
+            >
+              Alugar agora
+            </Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.quadraActionBtn,
+              pressed && styles.quadraActionPressed,
+            ]}
+            onPress={goQuadraReserva}
+            accessibilityLabel="Reservar quadra por data"
+          >
+            <Text style={styles.quadraActionText}>Reservar data</Text>
+          </Pressable>
+        </View>
+      </View>
 
       <PressableCard
         onPress={() => navigateScan('guarda_chuva')}
@@ -425,7 +536,62 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   emptyActiveText: { color: colors.textMuted, fontSize: 14 },
+  reservaBanner: {
+    backgroundColor: colors.primaryDark,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  reservaTitle: { color: colors.white, fontSize: 14, fontWeight: '600' },
+  reservaWhen: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 6,
+  },
+  reservaHint: { color: 'rgba(255,255,255,0.85)', fontSize: 12, marginTop: 8 },
+  reservaCancelLink: { marginTop: 10, alignSelf: 'flex-start' },
+  reservaCancelText: {
+    color: '#fecaca',
+    fontSize: 13,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  reservaBannerCompact: {
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+    ...card,
+  },
+  reservaCompactText: { fontSize: 12, color: colors.primaryDark, fontWeight: '500' },
   sectionTitle: { fontSize: 16, fontWeight: '600', color: colors.primaryVeryDark, marginBottom: 10 },
+  quadraCard: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: 14,
+    ...card,
+    elevation: 2,
+  },
+  quadraActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  quadraActionBtn: {
+    flex: 1,
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+  },
+  quadraActionPrimary: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  quadraActionDisabled: { opacity: 0.5 },
+  quadraActionPressed: { opacity: 0.85 },
+  quadraActionText: { fontSize: 13, fontWeight: '600', color: colors.primaryDark },
+  quadraActionTextPrimary: { color: colors.white },
+  quadraActionTextDisabled: { color: colors.white },
   cardSpacing: { marginBottom: 10 },
   cardRow: { flexDirection: 'row', alignItems: 'center' },
   iconWrap: {

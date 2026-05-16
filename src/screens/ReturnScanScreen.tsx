@@ -16,13 +16,14 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { useAlugueis } from '../hooks/useAlugueis';
 import { useAluno } from '../hooks/useAluno';
 import { devolverAluguel } from '../lib/devolverAluguel';
-import type { RootStackScreenProps } from '../navigation/types';
+import { navigateToHomeTab } from '../navigation/rootNavigation';
+import type { ScanStackScreenProps } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { border } from '../theme/ui';
 import type { ItemTipo } from '../types/database';
 import { ITEM_DISPLAY } from '../utils/itemDisplay';
 
-type Props = RootStackScreenProps<'Return'>;
+type Props = ScanStackScreenProps<'Return'>;
 
 const CHIPS: { key: ItemTipo; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { key: 'quadra', label: ITEM_DISPLAY.quadra.shortLabel, icon: ITEM_DISPLAY.quadra.icon },
@@ -90,13 +91,13 @@ export default function ReturnScanScreen({ navigation }: Props) {
       Alert.alert(
         'Devolvido com atraso',
         `${itemNome} devolvido. Multa de R$ ${valor} (${result.diasAtraso} dia(s)) registrada no seu RA.`,
-        [{ text: 'OK', onPress: () => navigation.navigate('MainTabs') }],
+        [{ text: 'OK', onPress: () => navigateToHomeTab() }],
       );
     } else {
       Alert.alert(
         'Devolução concluída',
         `${itemNome} devolvido com sucesso.`,
-        [{ text: 'OK', onPress: () => navigation.navigate('MainTabs') }],
+        [{ text: 'OK', onPress: () => navigateToHomeTab() }],
       );
     }
   };

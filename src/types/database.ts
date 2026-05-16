@@ -2,7 +2,13 @@ import type { Tables } from './supabase.generated';
 
 export type ItemTipo = 'quadra' | 'guarda_chuva';
 export type ExtraQuadra = 'futebol' | 'volei' | 'basquete';
-export type AluguelStatus = 'ativo' | 'devolvido' | 'atrasado' | 'aguardando_nfc';
+export type AluguelStatus =
+  | 'ativo'
+  | 'devolvido'
+  | 'atrasado'
+  | 'aguardando_nfc'
+  | 'agendado'
+  | 'cancelado';
 export type MultaStatus = 'pendente' | 'pago';
 
 export interface Admin {

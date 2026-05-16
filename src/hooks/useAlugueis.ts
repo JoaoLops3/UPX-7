@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Platform } from 'react-native';
+import { subscribeAlugueisChanges } from '../lib/alugueisRealtime';
 import { supabase } from '../lib/supabase';
+import {
+  dedupeAgendadoReservasQuadra,
+  pickProximaReservaQuadra,
+  syncAgendadoNoShows,
+} from '../lib/quadraReserva';
 import type { AluguelComItem } from '../types/database';
 import {
   isAluguelPendenteParaAluno,
@@ -35,11 +40,17 @@ export function useAlugueis(alunoId: string) {
       return false;
     }
 
-    const rows = (data as AluguelComItem[]) ?? [];
+    let rows = (data as AluguelComItem[]) ?? [];
 
-    if (!skipSync && (await syncAllQuadraAlugueisTiming(rows))) {
-      setLoading(false);
-      return fetchAlugueis(true);
+    if (!skipSync) {
+      let needsRefetch = false;
+      if (await dedupeAgendadoReservasQuadra(alunoId)) needsRefetch = true;
+      if (await syncAgendadoNoShows(rows)) needsRefetch = true;
+      if (await syncAllQuadraAlugueisTiming(rows)) needsRefetch = true;
+      if (needsRefetch) {
+        setLoading(false);
+        return fetchAlugueis(true);
+      }
     }
 
     setError(null);
@@ -49,35 +60,21 @@ export function useAlugueis(alunoId: string) {
   }, [alunoId]);
 
   useEffect(() => {
-    let channel: ReturnType<typeof supabase.channel> | null = null;
+    if (!alunoId) return;
 
-    void (async () => {
-      const ok = await fetchAlugueis();
-      // Realtime só após REST OK; na web evita spam de WebSocket se o projeto estiver pausado
-      if (!ok || !alunoId) return;
-      if (Platform.OS === 'web') return;
+    void fetchAlugueis();
 
-      channel = supabase
-        .channel('alugueis-changes')
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'alugueis' },
-          () => {
-            void fetchAlugueis();
-          },
-        )
-        .subscribe();
-    })();
-
-    return () => {
-      if (channel) supabase.removeChannel(channel);
-    };
+    return subscribeAlugueisChanges(alunoId, () => {
+      void fetchAlugueis();
+    });
   }, [fetchAlugueis, alunoId]);
 
   const aluguelAtivo = useMemo(
     () => alugueis.find((a) => isAluguelPendenteParaAluno(a)) ?? null,
     [alugueis],
   );
+
+  const reservaQuadra = useMemo(() => pickProximaReservaQuadra(alugueis), [alugueis]);
 
   useEffect(() => {
     if (!aluguelAtivo || aluguelAtivo.itens.tipo !== 'quadra') return;
@@ -92,5 +89,5 @@ export function useAlugueis(alunoId: string) {
     return () => clearInterval(id);
   }, [aluguelAtivo?.id, aluguelAtivo?.status, aluguelAtivo?.itens.tipo, fetchAlugueis]);
 
-  return { alugueis, loading, aluguelAtivo, error, refetch: fetchAlugueis };
+  return { alugueis, loading, aluguelAtivo, reservaQuadra, error, refetch: fetchAlugueis };
 }
