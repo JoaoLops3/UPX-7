@@ -11,10 +11,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { LoadingView } from '../components/LoadingView';
 import { DevolverNfcButton } from '../components/DevolverNfcButton';
+import { WeatherCard } from '../components/WeatherCard';
 import { PressableCard } from '../components/PressableCard';
 import { SupabaseErrorBanner } from '../components/SupabaseErrorBanner';
 import { useAlugueis } from '../hooks/useAlugueis';
 import { useAluno } from '../hooks/useAluno';
+import { useWeather } from '../hooks/useWeather';
 import { supabase } from '../lib/supabase';
 import { getSupabaseErrorMessage } from '../utils/supabaseError';
 import type { MainTabScreenProps } from '../navigation/types';
@@ -67,6 +69,8 @@ export default function HomeScreen({ navigation }: Props) {
   const [countdown, setCountdown] = useState('');
   const [quadraBookings, setQuadraBookings] = useState<QuadraBooking[]>([]);
   const [agendaNow, setAgendaNow] = useState(() => new Date());
+  const { weather, loading: weatherLoading, error: weatherError, refresh: refreshWeather } =
+    useWeather();
 
   const fetchItens = useCallback(async () => {
     setItensLoading(true);
@@ -96,7 +100,8 @@ export default function HomeScreen({ navigation }: Props) {
     useCallback(() => {
       fetchItens();
       void refetchAlugueis();
-    }, [fetchItens, refetchAlugueis]),
+      void refreshWeather();
+    }, [fetchItens, refetchAlugueis, refreshWeather]),
   );
 
   const quadraId = useMemo(
@@ -224,6 +229,15 @@ export default function HomeScreen({ navigation }: Props) {
           <Text style={styles.avatarText}>{getInitials(aluno?.nome ?? 'A')}</Text>
         </View>
       </View>
+
+      <WeatherCard
+        weather={weather}
+        loading={weatherLoading}
+        error={weatherError}
+        guardaDisponiveis={guardaDisponiveis}
+        onRetry={() => void refreshWeather(true)}
+        onUmbrellaPress={() => navigateScan('guarda_chuva')}
+      />
 
       {aluguelAtivo ? (
         <>
