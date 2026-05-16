@@ -66,7 +66,8 @@ export async function syncQuadraAluguelTiming(
       .from('alugueis')
       .update({
         status: 'devolvido',
-        fim_real: new Date(graceEnd).toISOString(),
+        // fim no horário previsto: encerramento automático da quadra sem multa
+        fim_real: aluguel.fim_previsto,
       })
       .eq('id', aluguel.id);
 

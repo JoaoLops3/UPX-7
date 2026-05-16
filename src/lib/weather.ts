@@ -7,6 +7,9 @@ const DEFAULT_LAT = -23.5015;
 const DEFAULT_LON = -47.4526;
 const TIMEZONE = 'America/Sao_Paulo';
 
+/** Evita service worker legado cachear/clonar respostas de APIs externas. */
+const WEATHER_FETCH_INIT: RequestInit = { cache: 'no-store' };
+
 export type WeatherSnapshot = {
   temperatureC: number;
   humidityPercent: number;
@@ -111,7 +114,7 @@ async function fetchFromOpenWeather(lat: number, lon: number): Promise<WeatherSn
   });
   const url = `https://api.openweathermap.org/data/2.5/weather?${params}`;
 
-  const response = await fetch(url);
+  const response = await fetch(url, WEATHER_FETCH_INIT);
   if (!response.ok) return null;
 
   const json = (await response.json()) as OpenWeatherResponse;
@@ -142,7 +145,7 @@ async function fetchFromOpenMeteo(lat: number, lon: number): Promise<WeatherSnap
     `&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,is_day` +
     `&timezone=${encodeURIComponent(TIMEZONE)}`;
 
-  const response = await fetch(url);
+  const response = await fetch(url, WEATHER_FETCH_INIT);
   if (!response.ok) {
     throw new Error('Não foi possível carregar o clima agora.');
   }

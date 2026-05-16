@@ -21,6 +21,7 @@ import NoAccessScreen from './src/screens/auth/NoAccessScreen';
 import { colors } from './src/theme/colors';
 import type { MainTabParamList, RootStackParamList } from './src/navigation/types';
 import { navigationRef } from './src/navigation/rootNavigation';
+import { unregisterOrphanServiceWorker } from './src/lib/unregisterOrphanServiceWorker';
 import HomeScreen from './src/screens/HomeScreen';
 import ScanScreen from './src/screens/ScanScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
@@ -181,8 +182,11 @@ export default function App() {
   });
 
   useEffect(() => {
-    if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      document.title = 'UPX 7';
+    if (Platform.OS === 'web') {
+      unregisterOrphanServiceWorker();
+      if (typeof document !== 'undefined') {
+        document.title = 'UPX 7';
+      }
     }
   }, []);
 
