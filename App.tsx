@@ -13,7 +13,9 @@ import { PrimaryButton } from './src/components/PrimaryButton';
 import { SupabaseErrorBanner } from './src/components/SupabaseErrorBanner';
 import { WebLayout } from './src/components/WebLayout';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
+import { useAdmin } from './src/hooks/useAdmin';
 import { useAluno } from './src/hooks/useAluno';
+import { AdminNavigation } from './src/navigation/AdminNavigator';
 import LoginScreen from './src/screens/auth/LoginScreen';
 import NoAccessScreen from './src/screens/auth/NoAccessScreen';
 import { colors } from './src/theme/colors';
@@ -106,14 +108,28 @@ function MainTabs() {
 
 function AuthenticatedApp() {
   const { session, loading: authLoading, signOut } = useAuth();
+  const { isAdmin, loading: adminLoading, error: adminError, refetch: refetchAdmin } = useAdmin();
   const { aluno, loading: alunoLoading, notRegistered, error, refetch } = useAluno();
 
-  if (authLoading || (session && alunoLoading)) {
+  if (authLoading || (session && adminLoading) || (session && !isAdmin && alunoLoading)) {
     return <LoadingView />;
   }
 
   if (!session) {
     return <LoginScreen />;
+  }
+
+  if (isAdmin) {
+    if (adminError) {
+      return (
+        <View style={gateStyles.errorScreen}>
+          <Text style={gateStyles.errorTitle}>Erro ao carregar perfil admin</Text>
+          <SupabaseErrorBanner message={adminError} onRetry={() => void refetchAdmin()} />
+          <PrimaryButton label="Sair" onPress={() => void signOut()} style={gateStyles.errorBtn} />
+        </View>
+      );
+    }
+    return <AdminNavigation />;
   }
 
   if (notRegistered) {

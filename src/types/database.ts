@@ -5,6 +5,14 @@ export type ExtraQuadra = 'futebol' | 'volei' | 'basquete';
 export type AluguelStatus = 'ativo' | 'devolvido' | 'atrasado' | 'aguardando_nfc';
 export type MultaStatus = 'pendente' | 'pago';
 
+export interface Admin {
+  id: string;
+  email: string;
+  nome: string;
+  ativo: boolean;
+  criado_em: string;
+}
+
 /** Linhas do banco — geradas em supabase.generated.ts (regenerar via Supabase MCP). */
 export type Aluno = Tables<'alunos'>;
 export type Item = Tables<'itens'>;
