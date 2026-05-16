@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -28,10 +28,14 @@ import {
 } from '../utils/dates';
 import { getInitials } from '../utils/initials';
 import { ITEM_DISPLAY } from '../utils/itemDisplay';
+import {
+  bookingEndForAluguel,
+  computeQuadraSlots,
+  type QuadraBooking,
+  type SlotState,
+} from '../utils/quadraAvailability';
 
 type Props = MainTabScreenProps<'Home'>;
-
-const QUADRA_SLOTS = 10;
 
 export default function HomeScreen({ navigation }: Props) {
   const { aluno, loading: alunoLoading, error: alunoError, refetch: refetchAluno } = useAluno();
@@ -46,6 +50,8 @@ export default function HomeScreen({ navigation }: Props) {
   const [itensLoading, setItensLoading] = useState(true);
   const [itensError, setItensError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState('');
+  const [quadraBookings, setQuadraBookings] = useState<QuadraBooking[]>([]);
+  const [agendaNow, setAgendaNow] = useState(() => new Date());
 
   const fetchItens = useCallback(async () => {
     setItensLoading(true);
@@ -58,6 +64,40 @@ export default function HomeScreen({ navigation }: Props) {
       setItens((data as Item[]) ?? []);
     }
     setItensLoading(false);
+  }, []);
+
+  const fetchQuadraAgenda = useCallback(async (quadraId: string) => {
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0);
+
+    const [{ data: active }, { data: today }] = await Promise.all([
+      supabase
+        .from('alugueis')
+        .select('inicio, fim_previsto, fim_real, status')
+        .eq('item_id', quadraId)
+        .eq('status', 'ativo'),
+      supabase
+        .from('alugueis')
+        .select('inicio, fim_previsto, fim_real, status')
+        .eq('item_id', quadraId)
+        .in('status', ['devolvido', 'atrasado'])
+        .gte('inicio', dayStart.toISOString()),
+    ]);
+
+    const rows = [...(active ?? []), ...(today ?? [])];
+    const seen = new Set<string>();
+    const bookings: QuadraBooking[] = [];
+
+    for (const row of rows) {
+      if (!row.inicio) continue;
+      const fim = bookingEndForAluguel(row);
+      const key = `${row.inicio}|${fim}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      bookings.push({ inicio: row.inicio, fim });
+    }
+
+    setQuadraBookings(bookings);
   }, []);
 
   const supabaseError = alunoError ?? alugueisError ?? itensError;
@@ -74,6 +114,22 @@ export default function HomeScreen({ navigation }: Props) {
     }, [fetchItens, refetchAlugueis]),
   );
 
+  const quadraId = useMemo(
+    () => itens.find((i) => i.tipo === 'quadra')?.id,
+    [itens],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (quadraId) void fetchQuadraAgenda(quadraId);
+    }, [quadraId, fetchQuadraAgenda]),
+  );
+
+  useEffect(() => {
+    const id = setInterval(() => setAgendaNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   useEffect(() => {
     if (!aluguelAtivo || aluguelAtivo.itens.tipo !== 'quadra') return;
 
@@ -85,6 +141,39 @@ export default function HomeScreen({ navigation }: Props) {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [aluguelAtivo]);
+
+  useEffect(() => {
+    if (quadraId) void fetchQuadraAgenda(quadraId);
+  }, [quadraId, fetchQuadraAgenda, aluguelAtivo?.id, aluguelAtivo?.fim_previsto]);
+
+  const quadraSlots = useMemo(
+    () => computeQuadraSlots(quadraBookings, agendaNow),
+    [quadraBookings, agendaNow],
+  );
+
+  const quadraOcupadaAgora = useMemo(
+    () => quadraSlots.some((s) => s.state === 'busy'),
+    [quadraSlots],
+  );
+
+  const agendaHint = useMemo(() => {
+    if (aluguelAtivo?.itens.tipo === 'quadra' && aluguelAtivo.inicio) {
+      return `Em uso · ${formatTime(aluguelAtivo.inicio)} – ${formatTime(aluguelAtivo.fim_previsto)}`;
+    }
+    if (quadraOcupadaAgora) {
+      const ativo = quadraBookings.find((b) => {
+        const start = new Date(b.inicio).getTime();
+        const end = new Date(b.fim).getTime();
+        const now = agendaNow.getTime();
+        return start <= now && end > now;
+      });
+      if (ativo) {
+        return `Ocupada · ${formatTime(ativo.inicio)} – ${formatTime(ativo.fim)}`;
+      }
+      return 'Ocupada agora';
+    }
+    return null;
+  }, [aluguelAtivo, quadraOcupadaAgora, quadraBookings, agendaNow]);
 
   const loading = alunoLoading || alugueisLoading || itensLoading;
   if (loading) return <LoadingView />;
@@ -102,7 +191,11 @@ export default function HomeScreen({ navigation }: Props) {
       ? daysBetween(new Date(), new Date(aluguelAtivo.fim_previsto))
       : 0;
 
-  const occupiedSlots = aluguelAtivo?.itens.tipo === 'quadra' && !quadra?.disponivel ? 3 : 1;
+  const slotStyleFor = (state: SlotState) => {
+    if (state === 'busy') return styles.slotBusy;
+    if (state === 'past') return styles.slotPast;
+    return styles.slotFree;
+  };
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -165,16 +258,18 @@ export default function HomeScreen({ navigation }: Props) {
           <View
             style={[
               styles.badge,
-              quadra?.disponivel ? styles.badgeFree : styles.badgeBusy,
+              quadraOcupadaAgora || !quadra?.disponivel ? styles.badgeBusy : styles.badgeFree,
             ]}
           >
             <Text
               style={[
                 styles.badgeText,
-                quadra?.disponivel ? styles.badgeTextFree : styles.badgeTextBusy,
+                quadraOcupadaAgora || !quadra?.disponivel
+                  ? styles.badgeTextBusy
+                  : styles.badgeTextFree,
               ]}
             >
-              {quadra?.disponivel ? 'Livre' : 'Ocupado'}
+              {quadraOcupadaAgora || !quadra?.disponivel ? 'Ocupado' : 'Livre'}
             </Text>
           </View>
         </View>
@@ -210,24 +305,14 @@ export default function HomeScreen({ navigation }: Props) {
 
       <View style={styles.slotsCard}>
         <Text style={styles.slotsLabel}>Disponibilidade da quadra hoje</Text>
+        {agendaHint ? <Text style={styles.slotsHint}>{agendaHint}</Text> : null}
         <View style={styles.slotsRow}>
-          {Array.from({ length: QUADRA_SLOTS }).map((_, i) => (
-            <View
-              key={i}
-              style={[
-                styles.slot,
-                i < occupiedSlots ? styles.slotBusy : styles.slotFree,
-              ]}
-            />
+          {quadraSlots.map((slot) => (
+            <View key={slot.index} style={styles.slotColumn}>
+              <Text style={styles.slotHourTop}>{slot.hourLabel ?? ' '}</Text>
+              <View style={[styles.slot, slotStyleFor(slot.state)]} />
+            </View>
           ))}
-        </View>
-        <View style={styles.slotsHours}>
-          <Text style={styles.slotHour}>08h</Text>
-          <Text style={styles.slotHour}>10h</Text>
-          <Text style={styles.slotHour}>12h</Text>
-          <Text style={styles.slotHour}>14h</Text>
-          <Text style={styles.slotHour}>16h</Text>
-          <Text style={styles.slotHour}>18h</Text>
         </View>
       </View>
     </ScrollView>
@@ -301,20 +386,27 @@ const styles = StyleSheet.create({
     padding: 12,
     marginTop: 6,
   },
-  slotsLabel: { fontSize: 12, color: colors.textMuted, marginBottom: 8 },
-  slotsRow: { flexDirection: 'row', gap: 6, justifyContent: 'space-between' },
-  slot: { flex: 1, height: 8, borderRadius: 4 },
-  slotBusy: { backgroundColor: colors.primary },
-  slotFree: { backgroundColor: colors.background },
-  slotsHours: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
+  slotsLabel: { fontSize: 12, color: colors.textMuted, marginBottom: 4 },
+  slotsHint: {
+    fontSize: 12,
+    color: colors.primaryDark,
+    fontWeight: '600',
+    marginBottom: 8,
+    fontVariant: ['tabular-nums'],
   },
-  slotHour: {
-    fontSize: 11,
+  slotsRow: { flexDirection: 'row', gap: 6, justifyContent: 'space-between' },
+  slotColumn: { flex: 1, alignItems: 'center' },
+  slotHourTop: {
+    fontSize: 10,
     color: colors.textMuted,
     fontWeight: '500',
     fontVariant: ['tabular-nums'],
+    marginBottom: 4,
+    minHeight: 14,
+    textAlign: 'center',
   },
+  slot: { alignSelf: 'stretch', width: '100%', height: 8, borderRadius: 4 },
+  slotBusy: { backgroundColor: colors.primary },
+  slotFree: { backgroundColor: colors.background },
+  slotPast: { backgroundColor: '#e2e8f0' },
 });

@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -123,6 +123,12 @@ export default function App() {
   const [fontsLoaded, fontError] = useFonts({
     ...Ionicons.font,
   });
+
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.title = 'UPX 7';
+    }
+  }, []);
 
   const onLayout = useCallback(() => {}, []);
 

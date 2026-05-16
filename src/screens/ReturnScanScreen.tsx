@@ -105,7 +105,11 @@ export default function ReturnScanScreen({ navigation }: Props) {
 
   if (!aluguelAtivo) {
     return (
-      <View style={styles.screen}>
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
         <BackButton onPress={() => navigation.goBack()} />
         <View style={styles.center}>
           <Ionicons name="cube-outline" size={48} color={colors.inactive} accessibilityElementsHidden />
@@ -114,7 +118,7 @@ export default function ReturnScanScreen({ navigation }: Props) {
             Você não tem nenhum item para devolver no momento.
           </Text>
         </View>
-      </View>
+      </ScrollView>
     );
   }
 
