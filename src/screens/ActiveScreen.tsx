@@ -17,7 +17,7 @@ import { BackButton } from '../components/BackButton';
 import { LoadingView } from '../components/LoadingView';
 import { useAlugueis } from '../hooks/useAlugueis';
 import { useAluno } from '../hooks/useAluno';
-import type { RootStackScreenProps } from '../navigation/types';
+import type { HomeStackScreenProps } from '../navigation/types';
 import { DevolverNfcButton } from '../components/DevolverNfcButton';
 import { colors } from '../theme/colors';
 import { card } from '../theme/ui';
@@ -31,7 +31,7 @@ import {
 import { EXTRA_DISPLAY } from '../utils/itemDisplay';
 import type { ExtraQuadra } from '../types/database';
 
-type Props = RootStackScreenProps<'Active'>;
+type Props = HomeStackScreenProps<'Active'>;
 
 export default function ActiveScreen({ navigation }: Props) {
   const { aluno, loading: alunoLoading } = useAluno();

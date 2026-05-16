@@ -11,14 +11,14 @@ import { LoadingView } from '../components/LoadingView';
 import { useAlugueis } from '../hooks/useAlugueis';
 import { useAluno } from '../hooks/useAluno';
 import { useMultas } from '../hooks/useMultas';
-import type { MainTabScreenProps } from '../navigation/types';
+import type { AppTabScreenProps } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { border, card } from '../theme/ui';
 import type { AluguelComItem, ItemTipo } from '../types/database';
 import { formatDuration, formatRelativeDateTime } from '../utils/dates';
 import { getItemDisplay } from '../utils/itemDisplay';
 
-type Props = MainTabScreenProps<'History'>;
+type Props = AppTabScreenProps<'History'>;
 type Filtro = 'todos' | ItemTipo;
 
 export default function HistoryScreen(_props: Props) {
@@ -119,6 +119,13 @@ function HistoryItem({
         )
       : '—';
 
+  const statusLabel =
+    aluguel.status === 'agendado'
+      ? 'Reservado'
+      : aluguel.status === 'cancelado'
+        ? 'Cancelado'
+        : null;
+
   return (
     <View style={styles.itemCard}>
       <View style={styles.itemIcon}>
@@ -143,6 +150,8 @@ function HistoryItem({
         <View style={styles.multaBadge}>
           <Text style={styles.multaBadgeText}>multa</Text>
         </View>
+      ) : statusLabel ? (
+        <Text style={styles.itemStatus}>{statusLabel}</Text>
       ) : (
         <Text style={styles.itemDuration}>{duracao}</Text>
       )}
@@ -205,6 +214,7 @@ const styles = StyleSheet.create({
   itemTitle: { fontSize: 14, fontWeight: '600', color: colors.primaryVeryDark },
   itemDate: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   itemDuration: { fontSize: 12, color: colors.primaryDark, fontWeight: '500' },
+  itemStatus: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
   multaBadge: {
     backgroundColor: colors.dangerBg,
     borderRadius: 8,

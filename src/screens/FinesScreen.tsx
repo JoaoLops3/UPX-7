@@ -14,7 +14,7 @@ import { BackButton } from '../components/BackButton';
 import { LoadingView } from '../components/LoadingView';
 import { useAluno } from '../hooks/useAluno';
 import { useMultas } from '../hooks/useMultas';
-import type { RootStackScreenProps } from '../navigation/types';
+import type { ProfileStackScreenProps } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { card } from '../theme/ui';
 import type { MultaComAluguel } from '../types/database';
@@ -24,7 +24,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-type Props = RootStackScreenProps<'Fines'>;
+type Props = ProfileStackScreenProps<'Fines'>;
 
 export default function FinesScreen({ navigation }: Props) {
   const { aluno, loading: alunoLoading } = useAluno();

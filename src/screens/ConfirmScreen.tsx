@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,15 +11,19 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { BackButton } from '../components/BackButton';
 import { LoadingView } from '../components/LoadingView';
+import { useAlugueis } from '../hooks/useAlugueis';
 import { useAluno } from '../hooks/useAluno';
+import { hasOutraReservaAgendada } from '../lib/quadraReserva';
 import { supabase } from '../lib/supabase';
-import type { RootStackScreenProps } from '../navigation/types';
+import { navigateRoot } from '../navigation/rootNavigation';
+import type { HomeStackScreenProps } from '../navigation/types';
+import { showAlert } from '../utils/alert';
 import { colors } from '../theme/colors';
 import { border, card } from '../theme/ui';
 import type { ExtraQuadra, Item } from '../types/database';
 import { addDays, formatDate, formatTime } from '../utils/dates';
 import { EXTRA_DISPLAY, EXTRA_KEYS, getItemDisplay } from '../utils/itemDisplay';
-import { fetchQuadraBookingsToday } from '../utils/quadraAgenda';
+import { fetchQuadraBookingsForDay, fetchQuadraBookingsToday } from '../utils/quadraAgenda';
 import {
   allowedQuadraDurations,
   canRentQuadraToday,
@@ -30,13 +33,17 @@ import {
   type QuadraBooking,
 } from '../utils/quadraAvailability';
 
-type Props = RootStackScreenProps<'Confirm'>;
+type Props = HomeStackScreenProps<'Confirm'>;
 
 const DURACOES = QUADRA_DURACOES_MIN;
 
 export default function ConfirmScreen({ navigation, route }: Props) {
   const tipo = route.params.item;
+  const mode = route.params.mode ?? 'now';
+  const isSchedule = tipo === 'quadra' && mode === 'schedule';
+  const scheduledStartIso = route.params.scheduledStart;
   const { aluno, loading: alunoLoading } = useAluno();
+  const { alugueis } = useAlugueis(aluno?.id ?? '');
   const [item, setItem] = useState<Item | null>(null);
   const [loadingItem, setLoadingItem] = useState(true);
   const [duracaoIdx, setDuracaoIdx] = useState(1);
@@ -50,33 +57,39 @@ export default function ConfirmScreen({ navigation, route }: Props) {
 
   const fetchItem = useCallback(async () => {
     setLoadingItem(true);
-    const { data } = await supabase
-      .from('itens')
-      .select('*')
-      .eq('tipo', tipo)
-      .eq('disponivel', true)
-      .limit(1)
-      .maybeSingle();
+    let query = supabase.from('itens').select('*').eq('tipo', tipo);
+    if (!isSchedule) {
+      query = query.eq('disponivel', true);
+    }
+    const { data } = await query.limit(1).maybeSingle();
     setItem((data as Item) ?? null);
     setLoadingItem(false);
-  }, [tipo]);
+  }, [tipo, isSchedule]);
 
   useEffect(() => {
     fetchItem();
   }, [fetchItem]);
+
+  const slotInicio = useMemo(() => {
+    if (isSchedule && scheduledStartIso) return new Date(scheduledStartIso);
+    return new Date();
+  }, [isSchedule, scheduledStartIso]);
 
   useEffect(() => {
     if (tipo !== 'quadra' || !item?.id) {
       setQuadraBookings([]);
       return;
     }
-    void fetchQuadraBookingsToday(item.id).then(setQuadraBookings);
-  }, [tipo, item?.id]);
+    const load = isSchedule
+      ? fetchQuadraBookingsForDay(item.id, slotInicio)
+      : fetchQuadraBookingsToday(item.id);
+    void load.then(setQuadraBookings);
+  }, [tipo, item?.id, isSchedule, slotInicio]);
 
   const duracoesPermitidas = useMemo(() => {
     if (tipo !== 'quadra') return [...DURACOES];
-    return allowedQuadraDurations(quadraBookings);
-  }, [tipo, quadraBookings]);
+    return allowedQuadraDurations(quadraBookings, slotInicio);
+  }, [tipo, quadraBookings, slotInicio]);
 
   useEffect(() => {
     if (tipo !== 'quadra' || duracoesPermitidas.length === 0) return;
@@ -93,16 +106,22 @@ export default function ConfirmScreen({ navigation, route }: Props) {
     : (duracoesPermitidas[duracoesPermitidas.length - 1] ?? DURACOES[0]);
 
   const fimPrevisto = useMemo(() => {
-    const base = new Date();
     if (tipo === 'quadra') {
-      return computeQuadraFimPrevisto(base, duracaoMin);
+      return computeQuadraFimPrevisto(slotInicio, duracaoMin);
     }
-    return addDays(base, 7);
-  }, [tipo, duracaoMin]);
+    return addDays(new Date(), 7);
+  }, [tipo, duracaoMin, slotInicio]);
 
   const quadraBloqueada =
     tipo === 'quadra' &&
-    (!canRentQuadraToday(quadraBookings) || duracoesPermitidas.length === 0);
+    (isSchedule
+      ? duracoesPermitidas.length === 0 ||
+        overlapsExistingBooking(
+          quadraBookings,
+          slotInicio,
+          computeQuadraFimPrevisto(slotInicio, duracaoMin),
+        )
+      : !canRentQuadraToday(quadraBookings) || duracoesPermitidas.length === 0);
 
   const duracaoLabel = useMemo(() => {
     if (duracaoMin === 30) return '30min';
@@ -115,21 +134,28 @@ export default function ConfirmScreen({ navigation, route }: Props) {
 
   const handleConfirm = async () => {
     if (!aluno || !item) {
-      Alert.alert('Erro', 'Aluno ou item não disponível.');
+      showAlert('Erro', 'Aluno ou item não disponível.');
       return;
     }
 
     if (tipo === 'quadra') {
-      const inicioCheck = new Date();
-      if (!canRentQuadraToday(quadraBookings, inicioCheck)) {
-        Alert.alert(
+      if (isSchedule && hasOutraReservaAgendada(alugueis)) {
+        showAlert(
+          'Reserva existente',
+          'Você já tem uma reserva agendada. Cancele-a antes de criar outra.',
+        );
+        return;
+      }
+      const inicioCheck = isSchedule ? slotInicio : new Date();
+      if (!isSchedule && !canRentQuadraToday(quadraBookings, inicioCheck)) {
+        showAlert(
           'Quadra indisponível',
           'Não há horários para alugar hoje. Funcionamento até 22h; se já houver aluguel até esse horário, o dia encerra.',
         );
         return;
       }
       if (duracoesPermitidas.length === 0) {
-        Alert.alert(
+        showAlert(
           'Quadra indisponível',
           'Não há tempo suficiente antes das 22h ou do próximo agendamento.',
         );
@@ -137,37 +163,47 @@ export default function ConfirmScreen({ navigation, route }: Props) {
       }
       const fimCheck = computeQuadraFimPrevisto(inicioCheck, duracaoMin);
       if (overlapsExistingBooking(quadraBookings, inicioCheck, fimCheck)) {
-        Alert.alert('Horário ocupado', 'Outro aluguel já ocupa este período. Escolha outra duração.');
+        showAlert('Horário ocupado', 'Outro aluguel já ocupa este período. Escolha outra duração.');
         return;
       }
     }
 
     setSubmitting(true);
-    const inicio = new Date().toISOString();
+    const inicio = (isSchedule ? slotInicio : new Date()).toISOString();
     const fimSalvar =
       tipo === 'quadra'
         ? computeQuadraFimPrevisto(new Date(inicio), duracaoMin).toISOString()
         : fimPrevisto.toISOString();
+
+    const status = isSchedule ? 'agendado' : 'ativo';
 
     const { error: insertError } = await supabase.from('alugueis').insert({
       aluno_id: aluno.id,
       item_id: item.id,
       inicio,
       fim_previsto: fimSalvar,
-      status: 'ativo',
+      status,
       com_extra: tipo === 'quadra' ? extrasSelecionados.length > 0 : false,
       extras: tipo === 'quadra' ? extrasSelecionados : [],
     } as never);
 
     if (insertError) {
-      Alert.alert('Erro', insertError.message);
+      showAlert('Erro', insertError.message);
       setSubmitting(false);
       return;
     }
 
-    await supabase.from('itens').update({ disponivel: false }).eq('id', item.id);
+    if (!isSchedule) {
+      await supabase.from('itens').update({ disponivel: false }).eq('id', item.id);
+      setSubmitting(false);
+      navigateRoot('Active');
+      return;
+    }
+
     setSubmitting(false);
-    navigation.replace('Active');
+    showAlert('Reserva confirmada', 'No dia, faça check-in no totem NFC no horário reservado.', [
+      { text: 'OK', onPress: () => navigateRoot('MainTabs') },
+    ]);
   };
 
   if (alunoLoading || loadingItem) return <LoadingView />;
@@ -178,11 +214,13 @@ export default function ConfirmScreen({ navigation, route }: Props) {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <BackButton onPress={() => navigation.goBack()} style={styles.backSpacing} />
 
-      <Text style={styles.title}>Confirmar aluguel</Text>
+      <Text style={styles.title}>{isSchedule ? 'Confirmar reserva' : 'Confirmar aluguel'}</Text>
       <Text style={styles.subtitle}>
-        {tipo === 'quadra'
-          ? 'Revise a duração e os extras antes de confirmar'
-          : 'Confira o número do guarda-chuva atribuído'}
+        {isSchedule
+          ? `Reserva para ${formatDate(slotInicio.toISOString())} às ${formatTime(slotInicio.toISOString())}`
+          : tipo === 'quadra'
+            ? 'Revise a duração e os extras antes de confirmar'
+            : 'Confira o número do guarda-chuva atribuído'}
       </Text>
 
       <View style={styles.itemCard}>
@@ -321,7 +359,9 @@ export default function ConfirmScreen({ navigation, route }: Props) {
         {submitting ? (
           <ActivityIndicator color={colors.white} />
         ) : (
-          <Text style={styles.confirmText}>Confirmar aluguel</Text>
+          <Text style={styles.confirmText}>
+            {isSchedule ? 'Confirmar reserva' : 'Confirmar aluguel'}
+          </Text>
         )}
       </Pressable>
     </ScrollView>
