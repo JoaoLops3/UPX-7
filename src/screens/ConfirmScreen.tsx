@@ -13,6 +13,7 @@ import { BackButton } from '../components/BackButton';
 import { LoadingView } from '../components/LoadingView';
 import { useAlugueis } from '../hooks/useAlugueis';
 import { useAluno } from '../hooks/useAluno';
+import { useScreenContentInsets } from '../hooks/useScreenContentInsets';
 import { hasOutraReservaAgendada } from '../lib/quadraReserva';
 import { supabase } from '../lib/supabase';
 import { navigateRoot } from '../navigation/rootNavigation';
@@ -38,6 +39,7 @@ type Props = HomeStackScreenProps<'Confirm'>;
 const DURACOES = QUADRA_DURACOES_MIN;
 
 export default function ConfirmScreen({ navigation, route }: Props) {
+  const { contentContainerStyle } = useScreenContentInsets(40);
   const tipo = route.params.item;
   const mode = route.params.mode ?? 'now';
   const isSchedule = tipo === 'quadra' && mode === 'schedule';
@@ -211,7 +213,7 @@ export default function ConfirmScreen({ navigation, route }: Props) {
   const display = getItemDisplay(tipo);
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.screen} contentContainerStyle={contentContainerStyle}>
       <BackButton onPress={() => navigation.goBack()} style={styles.backSpacing} />
 
       <Text style={styles.title}>{isSchedule ? 'Confirmar reserva' : 'Confirmar aluguel'}</Text>
@@ -370,10 +372,19 @@ export default function ConfirmScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.screenBg },
-  content: { padding: 16, paddingBottom: 40 },
-  backSpacing: { marginBottom: 12 },
-  title: { fontSize: 22, fontWeight: '700', color: colors.primaryVeryDark },
-  subtitle: { fontSize: 13, color: colors.textMuted, marginTop: 4, marginBottom: 16 },
+  backSpacing: { marginBottom: 8 },
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.primaryVeryDark,
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: colors.textMuted,
+    marginBottom: 16,
+    lineHeight: 18,
+  },
   itemCard: {
     backgroundColor: colors.white,
     borderRadius: 12,

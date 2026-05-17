@@ -17,7 +17,9 @@
       "bundleIdentifier": "com.upx7.app",
       "supportsTablet": true,
       "infoPlist": {
-        "UIBackgroundModes": ["fetch"]
+        "UIBackgroundModes": ["fetch"],
+        "NSLocalNetworkUsageDescription": "O UPX 7 usa a rede local para carregar o app em desenvolvimento a partir do seu Mac.",
+        "NSBonjourServices": ["_metro._tcp", "_http._tcp"]
       }
     },
     "android": {
@@ -30,6 +32,7 @@
       "expo-font",
       "./plugins/withFmtXcodeFix.js",
       "./plugins/withLocalNotificationsOnly.js",
+      "./plugins/withIosLocalNetworkMetro.js",
       [
         "expo-notifications",
         {

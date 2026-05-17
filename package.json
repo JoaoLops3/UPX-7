@@ -4,7 +4,10 @@
   "main": "index.js",
   "scripts": {
     "start": "expo start",
+    "start:lan": "expo start --lan",
     "dev": "expo start -c",
+    "ios:sync-packager": "bash scripts/sync-ios-packager-host.sh",
+    "ios:device": "bash scripts/sync-ios-packager-host.sh && expo run:ios --device",
     "build": "expo export -p web",
     "preview": "npx serve dist",
     "web": "expo start --web",

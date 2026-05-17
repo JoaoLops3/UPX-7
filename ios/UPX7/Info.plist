@@ -45,6 +45,13 @@
       <key>NSAllowsLocalNetworking</key>
       <true/>
     </dict>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>O UPX 7 usa a rede local para carregar o app em desenvolvimento a partir do seu Mac.</string>
+    <key>NSBonjourServices</key>
+    <array>
+      <string>_metro._tcp</string>
+      <string>_http._tcp</string>
+    </array>
     <key>UIBackgroundModes</key>
     <array>
       <string>fetch</string>
