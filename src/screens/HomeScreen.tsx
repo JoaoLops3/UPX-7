@@ -20,7 +20,7 @@ import { useScreenContentInsets } from '../hooks/useScreenContentInsets';
 import { useWeather } from '../hooks/useWeather';
 import { supabase } from '../lib/supabase';
 import { getSupabaseErrorMessage } from '../utils/supabaseError';
-import { navigateRoot, navigateToScan } from '../navigation/rootNavigation';
+import { navigateRoot, navigateToProfile, navigateToScan } from '../navigation/rootNavigation';
 import type { HomeStackScreenProps } from '../navigation/types';
 import { showAlert, showConfirm } from '../utils/alert';
 import { colors } from '../theme/colors';
@@ -267,15 +267,21 @@ export default function HomeScreen({ navigation }: Props) {
       {supabaseError && (
         <SupabaseErrorBanner message={supabaseError} onRetry={retryAll} />
       )}
-      <View style={styles.header}>
+      <Pressable
+        style={({ pressed }) => [styles.header, pressed && styles.headerPressed]}
+        onPress={navigateToProfile}
+        accessibilityRole="button"
+        accessibilityLabel="Abrir perfil"
+        accessibilityHint="Mostra seus dados e configurações da conta"
+      >
         <View style={styles.headerText}>
           <Text style={styles.greeting}>Olá, {aluno?.nome?.split(' ')[0] ?? 'aluno'}</Text>
           <Text style={styles.subGreeting}>Bem-vindo de volta</Text>
         </View>
-        <View style={styles.avatar} accessibilityLabel="Avatar do aluno">
+        <View style={styles.avatar}>
           <Text style={styles.avatarText}>{getInitials(aluno?.nome ?? 'A')}</Text>
         </View>
-      </View>
+      </Pressable>
 
       <WeatherCard
         weather={weather}
@@ -493,7 +499,17 @@ export default function HomeScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.screenBg },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    borderRadius: 12,
+    marginHorizontal: -4,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+  },
+  headerPressed: { opacity: 0.75 },
   headerText: { flex: 1 },
   greeting: { fontSize: 20, fontWeight: '700', color: colors.primaryVeryDark },
   subGreeting: { fontSize: 12, color: colors.textMuted, marginTop: 2 },

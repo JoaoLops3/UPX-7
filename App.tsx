@@ -19,6 +19,12 @@ import NoAccessScreen from './src/screens/auth/NoAccessScreen';
 import { colors } from './src/theme/colors';
 import { navigationRef } from './src/navigation/rootNavigation';
 import { StudentNavigator } from './src/navigation/StudentNavigator';
+import { StudentNotificationSync } from './src/components/StudentNotificationSync';
+import {
+  attachNotificationResponseListener,
+  configureNotificationHandler,
+  detachNotificationResponseListener,
+} from './src/lib/notifications/setup';
 import { unregisterOrphanServiceWorker } from './src/lib/unregisterOrphanServiceWorker';
 
 function AuthenticatedApp() {
@@ -72,6 +78,7 @@ function AppNavigation() {
   return (
     <NavigationContainer ref={navigationRef}>
       <StatusBar style="dark" />
+      <StudentNotificationSync />
       <StudentNavigator />
     </NavigationContainer>
   );
@@ -81,6 +88,12 @@ export default function App() {
   const [fontsLoaded, fontError] = useFonts({
     ...Ionicons.font,
   });
+
+  useEffect(() => {
+    configureNotificationHandler();
+    attachNotificationResponseListener();
+    return () => detachNotificationResponseListener();
+  }, []);
 
   useEffect(() => {
     if (Platform.OS === 'web') {

@@ -17,6 +17,7 @@ export type ScanStackParamList = {
 export type ProfileStackParamList = {
   ProfileMain: undefined;
   Fines: undefined;
+  NotificationSettings: undefined;
 };
 
 /** Navegação principal do aluno — tab bar sempre visível. */

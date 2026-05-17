@@ -95,7 +95,8 @@ export default function ProfileScreen({ navigation }: Props) {
         <MenuItem
           icon="notifications-outline"
           label="Notificações"
-          onPress={() => Alert.alert('Notificações', 'Configurações em breve.')}
+          subtitle="Alertas do celular"
+          onPress={() => navigation.navigate('NotificationSettings')}
         />
         <MenuItem
           icon="help-circle-outline"

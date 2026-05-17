@@ -59,3 +59,8 @@ export function navigateToScan(item?: ItemTipo) {
     params: item ? { item } : undefined,
   });
 }
+
+export function navigateToProfile() {
+  if (!navigationRef.isReady()) return;
+  navigationRef.navigate('Profile', { screen: 'ProfileMain' });
+}

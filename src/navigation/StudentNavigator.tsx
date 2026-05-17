@@ -19,6 +19,7 @@ import QuadraReservaScreen from '../screens/QuadraReservaScreen';
 import ActiveScreen from '../screens/ActiveScreen';
 import DevolucaoScreen from '../screens/DevolucaoScreen';
 import FinesScreen from '../screens/FinesScreen';
+import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
 const HomeStack = createStackNavigator<HomeStackParamList>();
@@ -63,6 +64,7 @@ function ProfileStackNavigator() {
     <ProfileStack.Navigator initialRouteName="ProfileMain" screenOptions={stackScreenOptions}>
       <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
       <ProfileStack.Screen name="Fines" component={FinesScreen} />
+      <ProfileStack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
     </ProfileStack.Navigator>
   );
 }

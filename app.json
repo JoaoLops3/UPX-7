@@ -23,6 +23,16 @@
         "backgroundColor": "#eaf2fb"
       }
     },
-    "plugins": ["expo-font", "./plugins/withFmtXcodeFix.js"]
+    "plugins": [
+      "expo-font",
+      "./plugins/withFmtXcodeFix.js",
+      [
+        "expo-notifications",
+        {
+          "color": "#3b82c4",
+          "defaultChannel": "default"
+        }
+      ]
+    ]
   }
 }
