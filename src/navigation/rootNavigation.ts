@@ -26,8 +26,8 @@ export function navigateRoot<RouteName extends keyof RootStackParamList>(
     case 'Active':
       navigationRef.navigate('Home', { screen: 'Active' });
       return;
-    case 'Return':
-      navigationRef.navigate('Scan', { screen: 'Return' });
+    case 'Devolucao':
+      navigationRef.navigate('Devolucao');
       return;
     case 'Fines':
       navigationRef.navigate('Profile', { screen: 'Fines' });
@@ -39,7 +39,7 @@ export function navigateRoot<RouteName extends keyof RootStackParamList>(
 
 export function navigateToReturn() {
   if (!navigationRef.isReady()) return;
-  navigationRef.navigate('Scan', { screen: 'Return' });
+  navigationRef.navigate('Devolucao');
 }
 
 export function navigateToHomeTab() {

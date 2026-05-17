@@ -12,7 +12,6 @@ export type HomeStackParamList = {
 
 export type ScanStackParamList = {
   ScanMain: { item?: ItemTipo } | undefined;
-  Return: undefined;
 };
 
 export type ProfileStackParamList = {
@@ -23,6 +22,7 @@ export type ProfileStackParamList = {
 /** Navegação principal do aluno — tab bar sempre visível. */
 export type AppTabParamList = {
   Home: NavigatorScreenParams<HomeStackParamList>;
+  Devolucao: undefined;
   Scan: NavigatorScreenParams<ScanStackParamList>;
   History: undefined;
   Profile: NavigatorScreenParams<ProfileStackParamList>;
@@ -34,7 +34,7 @@ export type RootStackParamList = {
   Confirm: HomeStackParamList['Confirm'];
   QuadraReserva: undefined;
   Active: undefined;
-  Return: undefined;
+  Devolucao: undefined;
   Fines: undefined;
 };
 
@@ -73,8 +73,8 @@ export type MainTabScreenProps<T extends 'Home' | 'Scan' | 'History' | 'Profile'
 export type RootStackScreenProps<T extends keyof RootStackParamList> =
   T extends 'Confirm' | 'QuadraReserva' | 'Active'
     ? HomeStackScreenProps<T extends 'Confirm' ? 'Confirm' : T extends 'QuadraReserva' ? 'QuadraReserva' : 'Active'>
-    : T extends 'Return'
-      ? ScanStackScreenProps<'Return'>
+    : T extends 'Devolucao'
+      ? AppTabScreenProps<'Devolucao'>
       : T extends 'Fines'
         ? ProfileStackScreenProps<'Fines'>
         : AppTabScreenProps<'Home'>;

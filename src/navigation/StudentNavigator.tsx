@@ -17,7 +17,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import ConfirmScreen from '../screens/ConfirmScreen';
 import QuadraReservaScreen from '../screens/QuadraReservaScreen';
 import ActiveScreen from '../screens/ActiveScreen';
-import ReturnScanScreen from '../screens/ReturnScanScreen';
+import DevolucaoScreen from '../screens/DevolucaoScreen';
 import FinesScreen from '../screens/FinesScreen';
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
@@ -54,7 +54,6 @@ function ScanStackNavigator() {
   return (
     <ScanStack.Navigator initialRouteName="ScanMain" screenOptions={stackScreenOptions}>
       <ScanStack.Screen name="ScanMain" component={ScanScreen} />
-      <ScanStack.Screen name="Return" component={ReturnScanScreen} />
     </ScanStack.Navigator>
   );
 }
@@ -83,9 +82,9 @@ export function StudentNavigator() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.inactive,
         tabBarLabelStyle: {
-          fontSize: 10,
+          fontSize: 9,
           fontWeight: '600',
-          lineHeight: 13,
+          lineHeight: 12,
           marginTop: 0,
           marginBottom: 2,
         },
@@ -110,6 +109,20 @@ export function StudentNavigator() {
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'home' : 'home-outline'}
+              size={22}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Devolucao"
+        component={DevolucaoScreen}
+        options={{
+          tabBarLabel: 'Devolução',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? 'return-down-back' : 'return-down-back-outline'}
               size={22}
               color={color}
             />
