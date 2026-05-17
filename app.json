@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "platforms": ["web"],
+    "scheme": "upx7",
     "web": {
       "bundler": "metro"
     },
@@ -13,6 +13,16 @@
       "resizeMode": "contain",
       "backgroundColor": "#eaf2fb"
     },
-    "plugins": ["expo-font"]
+    "ios": {
+      "bundleIdentifier": "com.upx7.app",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.upx7.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#eaf2fb"
+      }
+    },
+    "plugins": ["expo-font", "./plugins/withFmtXcodeFix.js"]
   }
 }

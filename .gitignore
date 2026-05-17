@@ -3,3 +3,16 @@ node_modules/
 .env.local
 dist/
 .expo/
+
+# iOS / Android (artefatos de build — pastas ios/ e android/ ficam versionadas)
+ios/build/
+ios/Pods/
+android/.gradle/
+android/build/
+android/app/build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+local.properties

@@ -11,6 +11,7 @@ import { LoadingView } from '../components/LoadingView';
 import { useAlugueis } from '../hooks/useAlugueis';
 import { useAluno } from '../hooks/useAluno';
 import { useMultas } from '../hooks/useMultas';
+import { useScreenContentInsets } from '../hooks/useScreenContentInsets';
 import type { AppTabScreenProps } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { border, card } from '../theme/ui';
@@ -26,6 +27,7 @@ export default function HistoryScreen(_props: Props) {
   const { alugueis, loading } = useAlugueis(aluno?.id ?? '');
   const { multas } = useMultas(aluno?.id ?? '');
   const [filtro, setFiltro] = useState<Filtro>('todos');
+  const { paddingTop, paddingHorizontal } = useScreenContentInsets();
 
   const multaPorAluguel = useMemo(() => {
     const map = new Map<string, boolean>();
@@ -50,7 +52,7 @@ export default function HistoryScreen(_props: Props) {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop, paddingHorizontal }]}>
         <Text style={styles.title}>Histórico</Text>
         <Text style={styles.subtitle}>Seus últimos aluguéis</Text>
       </View>
@@ -161,7 +163,7 @@ function HistoryItem({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.screenBg },
-  header: { padding: 16, paddingBottom: 8 },
+  header: { paddingBottom: 8 },
   title: { fontSize: 22, fontWeight: '700', color: colors.primaryVeryDark },
   subtitle: { fontSize: 13, color: colors.textMuted, marginTop: 4 },
   pills: {

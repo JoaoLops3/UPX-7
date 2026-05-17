@@ -13,6 +13,7 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { useAlugueis } from '../hooks/useAlugueis';
 import { useAluno } from '../hooks/useAluno';
 import { useQuadraCheckIn } from '../hooks/useQuadraCheckIn';
+import { useScreenContentInsets } from '../hooks/useScreenContentInsets';
 import {
   activateQuadraReserva,
   findAgendadoForCheckIn,
@@ -37,6 +38,7 @@ export default function ScanScreen({ navigation, route }: Props) {
   const pulse = useRef(new Animated.Value(1)).current;
   const { aluno } = useAluno();
   const { refetch } = useAlugueis(aluno?.id ?? '');
+  const { contentContainerStyle } = useScreenContentInsets();
 
   useEffect(() => {
     if (route.params?.item) {
@@ -119,7 +121,7 @@ export default function ScanScreen({ navigation, route }: Props) {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[styles.scrollContent, contentContainerStyle]}
       keyboardShouldPersistTaps="handled"
     >
       <BackButton onPress={() => navigateToHomeTab()} />
@@ -177,7 +179,7 @@ export default function ScanScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.screenBg },
-  scrollContent: { padding: 16, flexGrow: 1 },
+  scrollContent: { flexGrow: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 280 },
   pulseCircle: {
     width: 120,

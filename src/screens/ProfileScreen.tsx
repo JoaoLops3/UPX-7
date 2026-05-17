@@ -12,6 +12,7 @@ import { LoadingView } from '../components/LoadingView';
 import { useAlugueis } from '../hooks/useAlugueis';
 import { useAluno } from '../hooks/useAluno';
 import { useMultas } from '../hooks/useMultas';
+import { useScreenContentInsets } from '../hooks/useScreenContentInsets';
 import { useAuth } from '../contexts/AuthContext';
 import { navigateRoot } from '../navigation/rootNavigation';
 import type { ProfileStackScreenProps } from '../navigation/types';
@@ -27,6 +28,7 @@ export default function ProfileScreen({ navigation }: Props) {
   const { aluno, loading: alunoLoading } = useAluno();
   const { alugueis, loading: alugueisLoading } = useAlugueis(aluno?.id ?? '');
   const { multas, totalPendente, loading: multasLoading } = useMultas(aluno?.id ?? '');
+  const { contentContainerStyle } = useScreenContentInsets(40);
 
   const pendentes = multas.filter((m) => m.status === 'pendente').length;
 
@@ -48,7 +50,7 @@ export default function ProfileScreen({ navigation }: Props) {
   if (alunoLoading || alugueisLoading || multasLoading) return <LoadingView />;
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.screen} contentContainerStyle={contentContainerStyle}>
       <Text style={styles.title}>Perfil</Text>
 
       <View style={styles.profileRow}>
@@ -173,7 +175,6 @@ function MenuItem({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.screenBg },
-  content: { padding: 16, paddingBottom: 40 },
   title: { fontSize: 22, fontWeight: '700', color: colors.primaryVeryDark, marginBottom: 16 },
   profileRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 20 },
   avatar: {

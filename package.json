@@ -3,13 +3,17 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "expo start --web",
-    "dev": "expo start --web -c",
+    "start": "expo start",
+    "dev": "expo start -c",
     "build": "expo export -p web",
     "preview": "npx serve dist",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "prebuild": "expo prebuild",
+    "prebuild:clean": "expo prebuild --clean",
+    "ios": "expo run:ios",
+    "android": "expo run:android",
+    "ios:xcode": "open ios/UPX7.xcworkspace",
+    "android:studio": "open -a 'Android Studio' android"
   },
   "dependencies": {
     "@expo/metro-runtime": "~4.0.1",

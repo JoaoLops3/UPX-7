@@ -16,6 +16,7 @@ import { PressableCard } from '../components/PressableCard';
 import { SupabaseErrorBanner } from '../components/SupabaseErrorBanner';
 import { useAlugueis } from '../hooks/useAlugueis';
 import { useAluno } from '../hooks/useAluno';
+import { useScreenContentInsets } from '../hooks/useScreenContentInsets';
 import { useWeather } from '../hooks/useWeather';
 import { supabase } from '../lib/supabase';
 import { getSupabaseErrorMessage } from '../utils/supabaseError';
@@ -78,6 +79,7 @@ export default function HomeScreen({ navigation }: Props) {
   const [agendaNow, setAgendaNow] = useState(() => new Date());
   const { weather, loading: weatherLoading, error: weatherError, refresh: refreshWeather } =
     useWeather();
+  const { contentContainerStyle } = useScreenContentInsets();
 
   const fetchItens = useCallback(async () => {
     setItensLoading(true);
@@ -261,7 +263,7 @@ export default function HomeScreen({ navigation }: Props) {
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.screen} contentContainerStyle={contentContainerStyle}>
       {supabaseError && (
         <SupabaseErrorBanner message={supabaseError} onRetry={retryAll} />
       )}
@@ -491,7 +493,6 @@ export default function HomeScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.screenBg },
-  content: { padding: 16, paddingBottom: 20 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   headerText: { flex: 1 },
   greeting: { fontSize: 20, fontWeight: '700', color: colors.primaryVeryDark },
