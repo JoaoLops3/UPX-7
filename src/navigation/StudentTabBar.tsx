@@ -1,4 +1,5 @@
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { PlatformPressable } from '@react-navigation/elements';
+import { Platform, StyleSheet, View } from 'react-native';
 import {
   BottomTabBar,
   type BottomTabBarButtonProps,
@@ -12,6 +13,13 @@ export const STUDENT_TAB_BAR_CONTENT_HEIGHT = 72;
 const TAB_BAR_HORIZONTAL_INSET = 14;
 const TAB_BAR_BOTTOM_GAP_WEB = 12;
 
+/** Altura ocupada pela tab bar flutuante (para padding das telas e fim da área de scroll). */
+export function getStudentTabBarInset(safeBottom = 0): number {
+  const bottomGap =
+    Platform.OS === 'web' ? TAB_BAR_BOTTOM_GAP_WEB : Math.max(safeBottom, 8);
+  return 8 + STUDENT_TAB_BAR_CONTENT_HEIGHT + bottomGap;
+}
+
 export function StudentTabBarButton({
   style,
   children,
@@ -21,13 +29,13 @@ export function StudentTabBarButton({
   const selected = accessibilityState?.selected;
 
   return (
-    <Pressable
+    <PlatformPressable
       {...rest}
       accessibilityState={accessibilityState}
       style={[styles.tabButton, selected && styles.tabButtonSelected, style]}
     >
       {children}
-    </Pressable>
+    </PlatformPressable>
   );
 }
 

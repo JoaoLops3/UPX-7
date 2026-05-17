@@ -184,6 +184,7 @@ export default function QuadraReservaScreen({ navigation }: Props) {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={Platform.OS === 'web'}
+            style={styles.dateScroll}
             contentContainerStyle={styles.dateRow}
           >
             {dates.map((day) => {
@@ -284,12 +285,14 @@ export default function QuadraReservaScreen({ navigation }: Props) {
                     <Text style={[styles.slotBtnTime, slotTextVisual(slot.state, picked)]}>
                       {formatHourLabel(hour)}
                     </Text>
-                    {slot.state === 'busy' && !picked ? (
-                      <Text style={styles.slotBtnSub}>Ocupado</Text>
-                    ) : null}
-                    {picked ? (
-                      <Ionicons name="checkmark-circle" size={14} color={colors.white} />
-                    ) : null}
+                    <View style={styles.slotBtnFooter}>
+                      {slot.state === 'busy' && !picked ? (
+                        <Text style={styles.slotBtnSub}>Ocupado</Text>
+                      ) : null}
+                      {picked ? (
+                        <Ionicons name="checkmark-circle" size={14} color={colors.white} />
+                      ) : null}
+                    </View>
                   </Pressable>
                 );
               })}
@@ -330,8 +333,12 @@ export default function QuadraReservaScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.screenBg },
   scroll: { flex: 1 },
-  scrollContent: { padding: 16, paddingBottom: 8 },
-  scrollFooterSpacer: { height: 8 },
+  scrollContent: { padding: 16, paddingBottom: 16 },
+  scrollFooterSpacer: { height: 12 },
+  dateScroll: Platform.select({
+    web: { marginBottom: 2 },
+    default: {},
+  }),
   back: { marginBottom: 16 },
   hero: {
     flexDirection: 'row',
@@ -417,14 +424,18 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: 2,
   },
-  dateRow: { gap: 10, paddingRight: 4 },
+  dateRow: {
+    gap: 8,
+    paddingRight: 4,
+    paddingBottom: Platform.OS === 'web' ? 12 : 4,
+  },
   dateChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
     backgroundColor: colors.screenBg,
     alignItems: 'center',
-    minWidth: 72,
+    minWidth: 56,
     ...border,
   },
   dateChipSelected: {
@@ -437,30 +448,30 @@ const styles = StyleSheet.create({
   dateChipPressed: { backgroundColor: colors.background },
   dateBadge: {
     backgroundColor: colors.primaryDark,
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginBottom: 6,
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    marginBottom: 4,
   },
   dateBadgeSelected: { backgroundColor: 'rgba(255,255,255,0.25)' },
   dateBadgeText: {
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: '700',
     color: colors.white,
     textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    letterSpacing: 0.3,
   },
   dateWeekday: {
-    fontSize: 11,
+    fontSize: 10,
     color: colors.textMuted,
     textTransform: 'capitalize',
     fontWeight: '500',
   },
   dateDay: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '700',
     color: colors.primaryVeryDark,
-    marginTop: 2,
+    marginTop: 1,
     fontVariant: ['tabular-nums'],
   },
   dateTextSelected: { color: colors.white },
@@ -500,6 +511,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    justifyContent: 'center',
   },
   slotBtn: {
     width: Platform.select({ web: '23%', default: '30%' }),
@@ -512,7 +524,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderStyle: 'solid',
-    gap: 2,
+  },
+  slotBtnFooter: {
+    height: 14,
+    marginTop: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   slotBtnFree: {
     backgroundColor: colors.successBg,
@@ -534,7 +551,7 @@ const styles = StyleSheet.create({
       ? { boxShadow: '0 4px 10px rgba(59, 130, 196, 0.4)' }
       : { elevation: 3 }),
   },
-  slotBtnPressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
+  slotBtnPressed: { opacity: 0.88 },
   slotBtnTime: {
     fontSize: 15,
     fontWeight: '700',
@@ -554,6 +571,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: Platform.select({ web: 20, default: 24 }),
+    alignItems: 'center',
     backgroundColor: colors.white,
     borderTopWidth: 1,
     borderTopColor: colors.border,
@@ -562,12 +580,14 @@ const styles = StyleSheet.create({
       : { elevation: 8 }),
   },
   footerHint: {
+    alignSelf: 'stretch',
     fontSize: 13,
     color: colors.textMuted,
     textAlign: 'center',
     marginBottom: 10,
   },
   summaryCard: {
+    alignSelf: 'stretch',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -600,5 +620,10 @@ const styles = StyleSheet.create({
     color: colors.primaryVeryDark,
     marginTop: 2,
   },
-  cta: { marginTop: 0 },
+  cta: {
+    width: Platform.select({ web: 200, default: 240 }),
+    maxWidth: '100%',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+  },
 });

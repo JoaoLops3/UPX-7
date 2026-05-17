@@ -491,7 +491,7 @@ export default function HomeScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.screenBg },
-  content: { padding: 16, paddingBottom: 32 },
+  content: { padding: 16, paddingBottom: 20 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   headerText: { flex: 1 },
   greeting: { fontSize: 20, fontWeight: '700', color: colors.primaryVeryDark },
