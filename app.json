@@ -29,6 +29,7 @@
     "plugins": [
       "expo-font",
       "./plugins/withFmtXcodeFix.js",
+      "./plugins/withLocalNotificationsOnly.js",
       [
         "expo-notifications",
         {
