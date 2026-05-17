@@ -1,166 +1,83 @@
 import { useCallback, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
+  ActivityIndicator,
   Alert,
   Linking,
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
 import { BackButton } from '../components/BackButton';
-import { PrimaryButton } from '../components/PrimaryButton';
-import { useAlugueis } from '../hooks/useAlugueis';
-import { useAluno } from '../hooks/useAluno';
-import { useMultas } from '../hooks/useMultas';
 import { useScreenContentInsets } from '../hooks/useScreenContentInsets';
 import {
   getNotificationPermissionState,
-  requestNotificationPermissions,
   type PermissionState,
 } from '../lib/notifications/permissions';
-import {
-  getNotificationsEnabled,
-  notificationsSupportedOnPlatform,
-  setNotificationsEnabled,
-} from '../lib/notifications/preferences';
-import { syncStudentNotifications } from '../lib/notifications/syncStudentNotifications';
-import { fetchCampusWeather } from '../lib/weather';
+import { notificationsSupportedOnPlatform } from '../lib/notifications/preferences';
+import { sendTestNotification } from '../lib/notifications/testNotification';
 import type { ProfileStackScreenProps } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { border, card, cardPressed } from '../theme/ui';
 
 type Props = ProfileStackScreenProps<'NotificationSettings'>;
 
-const ALERT_TYPES: {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  description: string;
-}[] = [
-  {
-    icon: 'rainy-outline',
-    title: 'Chuva no campus',
-    description: 'Avisa quando estiver chovendo na Facens.',
-  },
-  {
-    icon: 'calendar-outline',
-    title: 'Reserva da quadra',
-    description: 'Lembretes 1 hora e 15 minutos antes do horário reservado.',
-  },
-  {
-    icon: 'football-outline',
-    title: 'Devolução da quadra',
-    description: 'Fim do horário, prazo do totem NFC e alertas urgentes.',
-  },
-  {
-    icon: 'umbrella-outline',
-    title: 'Devolução do guarda-chuva',
-    description: 'Lembretes antes do prazo de devolução.',
-  },
-  {
-    icon: 'alert-circle-outline',
-    title: 'Multas pendentes',
-    description: 'Quando houver multa em aberto no seu RA.',
-  },
-];
-
-function permissionLabel(state: PermissionState): string {
+function permissionHint(state: PermissionState): string {
   switch (state) {
     case 'granted':
-      return 'Permitidas no celular';
+      return 'Permissão concedida — os alertas estão ativos automaticamente.';
     case 'denied':
-      return 'Bloqueadas nas configurações do sistema';
+      return 'Permissão negada. Abra os ajustes do sistema para ativar.';
     case 'undetermined':
-      return 'Permissão ainda não concedida';
+      return 'Toque em testar para solicitar permissão.';
     default:
-      return 'Disponível só no app iOS ou Android';
+      return 'Use o app instalado no iPhone ou Android.';
   }
 }
 
 export default function NotificationSettingsScreen({ navigation }: Props) {
-  const { aluno } = useAluno();
-  const { aluguelAtivo, reservaQuadra } = useAlugueis(aluno?.id ?? '');
-  const { multas } = useMultas(aluno?.id ?? '');
   const { contentContainerStyle } = useScreenContentInsets(40);
-
   const supported = notificationsSupportedOnPlatform();
-  const [enabled, setEnabled] = useState(true);
-  const [permission, setPermission] = useState<PermissionState>('undetermined');
-  const [syncing, setSyncing] = useState(false);
+  const [permission, setPermission] = useState<PermissionState>(
+    supported ? 'undetermined' : 'unsupported',
+  );
+  const [testing, setTesting] = useState(false);
 
-  const refreshState = useCallback(async () => {
+  const refreshPermission = useCallback(async () => {
     if (!supported) return;
-    setEnabled(await getNotificationsEnabled());
     setPermission(await getNotificationPermissionState());
   }, [supported]);
 
   useFocusEffect(
     useCallback(() => {
-      void refreshState();
-    }, [refreshState]),
+      void refreshPermission();
+    }, [refreshPermission]),
   );
 
-  const resyncNotifications = useCallback(async () => {
-    if (!aluno?.id) return;
-    setSyncing(true);
-    try {
-      let clima = null;
-      try {
-        clima = await fetchCampusWeather();
-      } catch {
-        /* ignora */
-      }
-      await syncStudentNotifications({
-        aluguelAtivo,
-        reservaQuadra,
-        multasPendentes: multas.filter((m) => m.status === 'pendente'),
-        weather: clima,
-      });
-    } finally {
-      setSyncing(false);
-    }
-  }, [aluno?.id, aluguelAtivo, multas, reservaQuadra]);
+  const handleTest = async () => {
+    setTesting(true);
+    const result = await sendTestNotification();
+    await refreshPermission();
+    setTesting(false);
 
-  const handleToggle = async (value: boolean) => {
-    if (!supported) {
-      Alert.alert('Notificações', 'Instale o app no iPhone ou Android para receber alertas.');
+    if (!result.ok) {
+      Alert.alert('Não foi possível testar', result.message, [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Abrir ajustes',
+          onPress: () => void Linking.openSettings(),
+        },
+      ]);
       return;
     }
 
-    if (value) {
-      const state = await requestNotificationPermissions();
-      setPermission(state);
-      if (state !== 'granted') {
-        Alert.alert(
-          'Permissão necessária',
-          'Para receber alertas, ative as notificações do UPX 7 nas configurações do celular.',
-          [
-            { text: 'Cancelar', style: 'cancel' },
-            { text: 'Abrir ajustes', onPress: () => void Linking.openSettings() },
-          ],
-        );
-        return;
-      }
-    }
-
-    await setNotificationsEnabled(value);
-    setEnabled(value);
-    if (value) {
-      await resyncNotifications();
-    } else {
-      await syncStudentNotifications({
-        aluguelAtivo: null,
-        reservaQuadra: null,
-        multasPendentes: [],
-        weather: null,
-      });
-    }
+    Alert.alert(
+      'Teste enviado',
+      'Em alguns segundos você deve ver uma notificação de exemplo do UPX 7.',
+    );
   };
-
-  const switchOn = supported && enabled && permission === 'granted';
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={contentContainerStyle}>
@@ -168,82 +85,50 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
 
       <Text style={styles.title}>Notificações</Text>
       <Text style={styles.subtitle}>
-        Configure os alertas do UPX 7 no seu celular.
+        Os alertas são configurados automaticamente. Use o botão abaixo para simular um aviso.
       </Text>
 
-      <View style={styles.card}>
-        <View style={styles.masterRow}>
-          <View style={styles.masterText}>
-            <Text style={styles.masterLabel}>Receber alertas</Text>
-            <Text style={styles.masterHint}>
-              {supported
-                ? permissionLabel(permission)
-                : 'Use o aplicativo nativo no celular'}
-            </Text>
-          </View>
-          {supported ? (
-            <Switch
-              value={switchOn}
-              onValueChange={(v) => void handleToggle(v)}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              accessibilityLabel="Ativar ou desativar notificações do UPX 7"
-            />
-          ) : null}
-        </View>
+      <View style={styles.statusCard}>
+        <Text style={styles.statusLabel}>Status</Text>
+        <Text style={styles.statusText}>{permissionHint(permission)}</Text>
       </View>
 
-      {permission === 'denied' && supported ? (
-        <PrimaryButton
-          label="Abrir configurações do celular"
-          onPress={() => void Linking.openSettings()}
-          style={styles.settingsBtn}
-        />
-      ) : null}
-
-      <Text style={styles.sectionTitle}>Tipos de alerta</Text>
-      <View style={styles.card}>
-        {ALERT_TYPES.map((item, index) => (
-          <View
-            key={item.title}
-            style={[styles.typeRow, index < ALERT_TYPES.length - 1 && styles.typeBorder]}
+      {supported ? (
+        <>
+          <Pressable
+            style={({ pressed }) => [
+              styles.testBtn,
+              pressed && styles.testBtnPressed,
+              testing && styles.testBtnDisabled,
+            ]}
+            onPress={() => void handleTest()}
+            disabled={testing}
+            accessibilityRole="button"
+            accessibilityLabel="Testar notificação aleatória"
           >
-            <View style={styles.typeIcon}>
-              <Ionicons name={item.icon} size={20} color={colors.primaryDark} />
-            </View>
-            <View style={styles.typeBody}>
-              <Text style={styles.typeTitle}>{item.title}</Text>
-              <Text style={styles.typeDesc}>{item.description}</Text>
-            </View>
-            <Ionicons
-              name={switchOn ? 'checkmark-circle' : 'ellipse-outline'}
-              size={20}
-              color={switchOn ? colors.successText : colors.inactive}
-              accessibilityElementsHidden
-            />
-          </View>
-        ))}
-      </View>
+            {testing ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <Text style={styles.testBtnText}>Testar notificação</Text>
+            )}
+          </Pressable>
 
-      <View style={styles.noteCard}>
-        <Ionicons name="information-circle-outline" size={20} color={colors.primaryDark} />
-        <Text style={styles.noteText}>
-          Os lembretes são agendados no seu aparelho quando você usa o app. Abra o UPX 7 pelo
-          menos uma vez ao dia para manter reservas e devoluções atualizadas.
-        </Text>
-      </View>
-
-      {supported && switchOn ? (
-        <Pressable
-          style={({ pressed }) => [styles.resyncBtn, pressed && cardPressed(true)]}
-          onPress={() => void resyncNotifications()}
-          disabled={syncing}
-          accessibilityLabel="Atualizar lembretes agora"
-        >
-          <Text style={styles.resyncText}>
-            {syncing ? 'Atualizando lembretes…' : 'Atualizar lembretes agora'}
+          <Pressable
+            style={({ pressed }) => [styles.settingsLink, pressed && cardPressed(true)]}
+            onPress={() => void Linking.openSettings()}
+            accessibilityRole="button"
+            accessibilityLabel="Abrir configurações do sistema"
+          >
+            <Text style={styles.settingsLinkText}>Abrir ajustes do celular</Text>
+          </Pressable>
+        </>
+      ) : (
+        <View style={styles.statusCard}>
+          <Text style={styles.statusText}>
+            Instale o UPX 7 no iPhone ou Android para receber e testar notificações.
           </Text>
-        </Pressable>
-      ) : null}
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -261,75 +146,57 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textMuted,
     marginBottom: 20,
+    lineHeight: 18,
   },
-  sectionTitle: {
-    fontSize: 13,
+  statusCard: {
+    ...card,
+    padding: 16,
+    marginBottom: 24,
+  },
+  statusLabel: {
+    fontSize: 12,
     fontWeight: '700',
     color: colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
-    marginBottom: 10,
-    marginTop: 4,
+    marginBottom: 6,
   },
-  card: {
-    ...card,
-    marginBottom: 16,
-    overflow: 'hidden',
+  statusText: {
+    fontSize: 14,
+    color: colors.primaryVeryDark,
+    lineHeight: 20,
   },
-  masterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    gap: 12,
-  },
-  masterText: { flex: 1 },
-  masterLabel: { fontSize: 16, fontWeight: '600', color: colors.primaryVeryDark },
-  masterHint: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
-  settingsBtn: { marginBottom: 16 },
-  typeRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: 14,
-    gap: 12,
-  },
-  typeBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  typeIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: colors.background,
+  testBtn: {
+    backgroundColor: colors.dangerText,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: '#c62828',
+    paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 52,
+    marginBottom: 12,
   },
-  typeBody: { flex: 1 },
-  typeTitle: { fontSize: 14, fontWeight: '600', color: colors.primaryVeryDark },
-  typeDesc: { fontSize: 12, color: colors.textMuted, marginTop: 3, lineHeight: 17 },
-  noteCard: {
-    ...card,
-    flexDirection: 'row',
-    padding: 14,
-    gap: 10,
-    alignItems: 'flex-start',
-    backgroundColor: colors.background,
+  testBtnPressed: {
+    backgroundColor: '#c62828',
   },
-  noteText: {
-    flex: 1,
-    fontSize: 12,
-    color: colors.textMuted,
-    lineHeight: 17,
+  testBtnDisabled: {
+    opacity: 0.7,
   },
-  resyncBtn: {
+  testBtnText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  settingsLink: {
     ...border,
     borderRadius: 12,
     backgroundColor: colors.white,
     paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 8,
   },
-  resyncText: {
+  settingsLinkText: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.primaryDark,

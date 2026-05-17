@@ -1,26 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { BackButton } from '../components/BackButton';
+import { DevolverNfcButton } from '../components/DevolverNfcButton';
+import { LoadingView } from '../components/LoadingView';
+import { useAlugueis } from '../hooks/useAlugueis';
+import { useAluno } from '../hooks/useAluno';
+import { useScreenContentInsets } from '../hooks/useScreenContentInsets';
 import {
   getQuadraAluguelPhase,
   getQuadraGraceDeadline,
   QUADRA_GRACE_MINUTES,
 } from '../lib/quadraAluguelTiming';
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { BackButton } from '../components/BackButton';
-import { LoadingView } from '../components/LoadingView';
-import { useAlugueis } from '../hooks/useAlugueis';
-import { useAluno } from '../hooks/useAluno';
+import { notificationsSupportedOnPlatform } from '../lib/notifications/preferences';
+import { navigateToNotificationSettings } from '../navigation/rootNavigation';
 import type { HomeStackScreenProps } from '../navigation/types';
-import { DevolverNfcButton } from '../components/DevolverNfcButton';
 import { colors } from '../theme/colors';
-import { card } from '../theme/ui';
+import { border, card } from '../theme/ui';
+import type { ExtraQuadra } from '../types/database';
 import {
   daysBetween,
   formatCountdown,
@@ -29,11 +26,12 @@ import {
   formatTime,
 } from '../utils/dates';
 import { EXTRA_DISPLAY } from '../utils/itemDisplay';
-import type { ExtraQuadra } from '../types/database';
 
 type Props = HomeStackScreenProps<'Active'>;
 
 export default function ActiveScreen({ navigation }: Props) {
+  const { contentContainerStyle, paddingTop, paddingHorizontal } =
+    useScreenContentInsets(40);
   const { aluno, loading: alunoLoading } = useAluno();
   const { aluguelAtivo, loading } = useAlugueis(aluno?.id ?? '');
   const [countdown, setCountdown] = useState('00:00:00');
@@ -71,10 +69,16 @@ export default function ActiveScreen({ navigation }: Props) {
 
   if (!aluguelAtivo) {
     return (
-      <View style={styles.empty}>
-        <Ionicons name="cube-outline" size={48} color={colors.inactive} accessibilityElementsHidden />
-        <Text style={styles.emptyText}>Nenhum aluguel ativo</Text>
-        <BackButton onPress={() => navigation.goBack()} />
+      <View style={[styles.empty, { paddingTop, paddingHorizontal }]}>
+        <Ionicons
+          name="cube-outline"
+          size={48}
+          color={colors.inactive}
+          accessibilityElementsHidden
+        />
+        <Text style={styles.emptyTitle}>Nenhum aluguel ativo</Text>
+        <Text style={styles.emptyText}>Escaneie um item na aba Escanear para começar.</Text>
+        <BackButton onPress={() => navigation.goBack()} style={styles.emptyBack} />
       </View>
     );
   }
@@ -88,32 +92,55 @@ export default function ActiveScreen({ navigation }: Props) {
       : aluguelAtivo.com_extra
         ? 'Bola incluída'
         : null;
+  const urgent = isQuadra && quadraPhase === 'aguardando_nfc';
+  const showNotifications = notificationsSupportedOnPlatform();
+
+  const detailRows: { label: string; value: string }[] = [
+    { label: 'Início', value: formatDateTime(aluguelAtivo.inicio ?? '') },
+    {
+      label: urgent ? 'Confirmar no totem até' : 'Devolver até',
+      value:
+        urgent
+          ? formatDateTime(getQuadraGraceDeadline(aluguelAtivo.fim_previsto).toISOString())
+          : isQuadra
+            ? `${formatDate(aluguelAtivo.fim_previsto)} · ${formatTime(aluguelAtivo.fim_previsto)}`
+            : formatDate(aluguelAtivo.fim_previsto),
+    },
+    ...(isQuadra && extrasLabel ? [{ label: 'Extras', value: extrasLabel }] : []),
+    { label: 'RA', value: aluno?.ra ?? '—' },
+  ];
 
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={contentContainerStyle}
       keyboardShouldPersistTaps="handled"
     >
-      <View style={styles.header}>
+      <View style={[styles.topRow, !showNotifications && styles.topRowBackOnly]}>
         <BackButton onPress={() => navigation.goBack()} />
-        <Text style={styles.headerTitle}>Aluguel ativo</Text>
-        <Pressable
-          onPress={() => Alert.alert('Notificações', 'Configurações em breve.')}
-          accessibilityLabel="Notificações"
-          hitSlop={8}
-        >
-          <Ionicons name="notifications-outline" size={22} color={colors.primaryDark} />
-        </Pressable>
+        {showNotifications ? (
+          <Pressable
+            onPress={navigateToNotificationSettings}
+            style={({ pressed }) => [styles.bellBtn, pressed && styles.bellBtnPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Abrir configurações de notificações"
+            hitSlop={8}
+          >
+            <Ionicons name="notifications-outline" size={22} color={colors.primaryDark} />
+          </Pressable>
+        ) : null}
       </View>
 
-      <View
-        style={[styles.heroCard, quadraPhase === 'aguardando_nfc' && styles.heroCardUrgent]}
-      >
+      <Text style={styles.title}>Aluguel ativo</Text>
+      <Text style={styles.subtitle}>
+        {isQuadra ? 'Quadra esportiva' : 'Item em uso · devolva no prazo'}
+      </Text>
+
+      <View style={[styles.heroCard, urgent && styles.heroCardUrgent]}>
         <Text style={styles.heroTitle}>{aluguelAtivo.itens.nome}</Text>
         <Text style={styles.heroLoc}>{aluguelAtivo.itens.localizacao}</Text>
 
-        {isQuadra && quadraPhase === 'aguardando_nfc' ? (
+        {urgent ? (
           <Text style={styles.expiredHint}>
             Tempo esgotado — aproxime o NFC no totem para confirmar a devolução (
             {QUADRA_GRACE_MINUTES} min)
@@ -121,21 +148,21 @@ export default function ActiveScreen({ navigation }: Props) {
         ) : null}
 
         {isQuadra ? (
-          <Text
-            style={[
-              styles.countdown,
-              quadraPhase === 'aguardando_nfc' && styles.countdownUrgent,
-            ]}
-          >
-            {countdown}
-          </Text>
+          <Text style={[styles.countdown, urgent && styles.countdownUrgent]}>{countdown}</Text>
         ) : (
           <>
-            <Text style={styles.daysLeft}>{diasRestantes} dias restantes</Text>
-            <Text style={styles.devolver}>
-              Devolver até {formatDate(aluguelAtivo.fim_previsto)}
-            </Text>
-            <Text style={styles.numeroDestaque}>#{aluguelAtivo.itens.numero}</Text>
+            <View style={styles.heroNumeroBlock}>
+              <Text style={styles.heroNumeroLabel}>Pegue o item</Text>
+              <Text style={styles.heroNumero}>#{aluguelAtivo.itens.numero}</Text>
+            </View>
+            <View style={styles.prazoBlock}>
+              <Text style={styles.prazoHighlight}>
+                {diasRestantes} {diasRestantes === 1 ? 'dia restante' : 'dias restantes'}
+              </Text>
+              <Text style={styles.devolver}>
+                Devolver até {formatDate(aluguelAtivo.fim_previsto)}
+              </Text>
+            </View>
           </>
         )}
 
@@ -144,31 +171,34 @@ export default function ActiveScreen({ navigation }: Props) {
         </View>
       </View>
 
-      <DevolverNfcButton urgent={quadraPhase === 'aguardando_nfc'} />
+      <DevolverNfcButton urgent={urgent} />
 
       <View style={styles.detailsCard}>
         <Text style={styles.detailsTitle}>Detalhes</Text>
-        <DetailRow label="Início" value={formatDateTime(aluguelAtivo.inicio ?? '')} />
-        <DetailRow
-          label={quadraPhase === 'aguardando_nfc' ? 'Confirmar no totem até' : 'Devolver até'}
-          value={
-            isQuadra && quadraPhase === 'aguardando_nfc'
-              ? formatDateTime(getQuadraGraceDeadline(aluguelAtivo.fim_previsto).toISOString())
-              : isQuadra
-                ? `${formatDate(aluguelAtivo.fim_previsto)} · ${formatTime(aluguelAtivo.fim_previsto)}`
-                : formatDate(aluguelAtivo.fim_previsto)
-          }
-        />
-        {isQuadra && extrasLabel && <DetailRow label="Extras" value={extrasLabel} />}
-        <DetailRow label="RA" value={aluno?.ra ?? '—'} />
+        {detailRows.map((row, index) => (
+          <DetailRow
+            key={row.label}
+            label={row.label}
+            value={row.value}
+            isLast={index === detailRows.length - 1}
+          />
+        ))}
       </View>
     </ScrollView>
   );
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+function DetailRow({
+  label,
+  value,
+  isLast,
+}: {
+  label: string;
+  value: string;
+  isLast?: boolean;
+}) {
   return (
-    <View style={styles.detailRow}>
+    <View style={[styles.detailRow, isLast && styles.detailRowLast]}>
       <Text style={styles.detailLabel}>{label}</Text>
       <Text style={styles.detailValue}>{value}</Text>
     </View>
@@ -177,58 +207,113 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.screenBg },
-  content: { padding: 16, paddingBottom: 40 },
-  header: {
+  topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 12,
   },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: colors.primaryVeryDark },
+  topRowBackOnly: {
+    justifyContent: 'flex-start',
+  },
+  bellBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...border,
+    backgroundColor: colors.white,
+  },
+  bellBtnPressed: {
+    backgroundColor: colors.background,
+    borderColor: colors.primary,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.primaryVeryDark,
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: colors.textMuted,
+    marginBottom: 16,
+    lineHeight: 18,
+  },
   heroCard: {
     backgroundColor: colors.primaryVeryDark,
     borderRadius: 12,
     padding: 20,
     marginBottom: 16,
+    overflow: 'hidden',
+    minHeight: 168,
   },
   heroCardUrgent: {
     backgroundColor: '#92400e',
   },
+  heroTitle: { color: colors.white, fontSize: 18, fontWeight: '600' },
+  heroLoc: { color: 'rgba(255,255,255,0.75)', fontSize: 13, marginTop: 4 },
   expiredHint: {
     color: '#fef3c7',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     textAlign: 'center',
     marginTop: 12,
-    lineHeight: 20,
+    lineHeight: 18,
   },
-  heroTitle: { color: colors.white, fontSize: 18, fontWeight: '600' },
-  heroLoc: { color: 'rgba(255,255,255,0.75)', fontSize: 13, marginTop: 4 },
   countdown: {
     color: colors.white,
     fontSize: 40,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
-    marginVertical: 16,
+    marginVertical: 20,
     textAlign: 'center',
   },
   countdownUrgent: {
     color: '#fde68a',
   },
-  daysLeft: {
+  heroNumeroBlock: {
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignSelf: 'center',
+    minWidth: 140,
+  },
+  heroNumeroLabel: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  heroNumero: {
     color: colors.white,
-    fontSize: 32,
+    fontSize: 56,
+    fontWeight: '800',
+    lineHeight: 60,
+    letterSpacing: -1,
+  },
+  prazoBlock: {
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  prazoHighlight: {
+    color: colors.progressFill,
+    fontSize: 17,
     fontWeight: '700',
-    marginTop: 16,
     textAlign: 'center',
   },
-  devolver: { color: 'rgba(255,255,255,0.8)', fontSize: 13, textAlign: 'center', marginTop: 4 },
-  numeroDestaque: {
-    color: colors.progressFill,
-    fontSize: 28,
-    fontWeight: '700',
+  devolver: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 13,
     textAlign: 'center',
-    marginTop: 8,
   },
   progressTrack: {
     height: 6,
@@ -239,27 +324,60 @@ const styles = StyleSheet.create({
   },
   progressFill: { height: '100%', backgroundColor: colors.progressFill, borderRadius: 3 },
   detailsCard: {
+    ...card,
     backgroundColor: colors.white,
     borderRadius: 12,
     padding: 16,
-    ...card,
   },
-  detailsTitle: { fontSize: 15, fontWeight: '600', color: colors.primaryVeryDark, marginBottom: 12 },
+  detailsTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 4,
+  },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
-  detailLabel: { fontSize: 13, color: colors.textMuted },
-  detailValue: { fontSize: 13, fontWeight: '500', color: colors.primaryVeryDark },
+  detailRowLast: {
+    borderBottomWidth: 0,
+    paddingBottom: 0,
+  },
+  detailLabel: { fontSize: 13, color: colors.textMuted, flexShrink: 0 },
+  detailValue: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.primaryVeryDark,
+    textAlign: 'right',
+    flex: 1,
+    lineHeight: 18,
+  },
   empty: {
     flex: 1,
+    backgroundColor: colors.screenBg,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.screenBg,
-    gap: 12,
+    gap: 8,
   },
-  emptyText: { color: colors.textMuted, fontSize: 15 },
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.primaryVeryDark,
+    marginTop: 8,
+  },
+  emptyText: {
+    fontSize: 13,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  emptyBack: { marginTop: 8 },
 });

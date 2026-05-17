@@ -3,6 +3,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { useAlugueis } from './useAlugueis';
 import { useMultas } from './useMultas';
 import { useWeather } from './useWeather';
+import { ensureNotificationsAutoSetup } from '../lib/notifications/autoSetup';
 import { getNotificationsEnabled } from '../lib/notifications/preferences';
 import { syncStudentNotifications } from '../lib/notifications/syncStudentNotifications';
 
@@ -19,6 +20,8 @@ export function useStudentNotifications(alunoId: string) {
   const runSync = useCallback(async () => {
     if (!alunoId || syncingRef.current) return;
     if (alugueisLoading || multasLoading || weatherLoading) return;
+
+    await ensureNotificationsAutoSetup();
 
     const enabled = await getNotificationsEnabled();
     if (!enabled) {

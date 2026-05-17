@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   LayoutAnimation,
   Platform,
@@ -14,9 +14,10 @@ import { BackButton } from '../components/BackButton';
 import { LoadingView } from '../components/LoadingView';
 import { useAluno } from '../hooks/useAluno';
 import { useMultas } from '../hooks/useMultas';
+import { useScreenContentInsets } from '../hooks/useScreenContentInsets';
 import type { ProfileStackScreenProps } from '../navigation/types';
 import { colors } from '../theme/colors';
-import { card } from '../theme/ui';
+import { border, card, cardPressed } from '../theme/ui';
 import type { MultaComAluguel } from '../types/database';
 import { formatDateTime } from '../utils/dates';
 
@@ -26,27 +27,114 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 type Props = ProfileStackScreenProps<'Fines'>;
 
+function formatMoney(value: number) {
+  return value.toFixed(2).replace('.', ',');
+}
+
 export default function FinesScreen({ navigation }: Props) {
+  const { contentContainerStyle } = useScreenContentInsets(40);
   const { aluno, loading: alunoLoading } = useAluno();
-  const { multas, loading } = useMultas(aluno?.id ?? '');
+  const { multas, totalPendente, loading } = useMultas(aluno?.id ?? '');
+
+  const pendentes = useMemo(() => multas.filter((m) => m.status === 'pendente'), [multas]);
+  const quitadas = useMemo(() => multas.filter((m) => m.status === 'pago'), [multas]);
 
   if (alunoLoading || loading) return <LoadingView />;
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.screen} contentContainerStyle={contentContainerStyle}>
       <BackButton onPress={() => navigation.goBack()} style={styles.backSpacing} />
 
       <Text style={styles.title}>Minhas multas</Text>
       <Text style={styles.subtitle}>RA · {aluno?.ra ?? '—'}</Text>
 
+      <View style={styles.infoCard} accessibilityRole="text">
+        <View style={styles.infoHeader}>
+          <View style={styles.infoIconWrap}>
+            <Ionicons
+              name="information-circle-outline"
+              size={22}
+              color={colors.primaryDark}
+              accessibilityElementsHidden
+            />
+          </View>
+          <Text style={styles.infoTitle}>Como funcionam as multas</Text>
+        </View>
+        <Text style={styles.infoBullet}>
+          • Multa de <Text style={styles.infoEmphasis}>R$ 5,00 por dia</Text> de atraso na
+          devolução do item.
+        </Text>
+        <Text style={styles.infoBullet}>
+          • O valor é registrado automaticamente no seu RA quando você devolve após o prazo.
+        </Text>
+        <Text style={styles.infoBullet}>
+          • Para pagar, vá até a <Text style={styles.infoEmphasis}>tesouraria</Text> do campus com
+          seu RA. O pagamento não é feito pelo aplicativo.
+        </Text>
+      </View>
+
+      {pendentes.length > 0 && (
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Total pendente</Text>
+            <Text style={styles.summaryCount}>
+              {pendentes.length} {pendentes.length === 1 ? 'multa' : 'multas'}
+            </Text>
+          </View>
+          <Text style={styles.summaryValue}>R$ {formatMoney(totalPendente)}</Text>
+        </View>
+      )}
+
       {multas.length === 0 ? (
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>Sem multas pendentes ✓</Text>
+          <Ionicons
+            name="checkmark-circle"
+            size={40}
+            color={colors.successText}
+            accessibilityElementsHidden
+          />
+          <Text style={styles.emptyTitle}>Nenhuma multa registrada</Text>
+          <Text style={styles.emptyText}>
+            Devolva os itens no prazo para evitar cobranças no seu RA.
+          </Text>
         </View>
       ) : (
-        multas.map((multa) => <MultaCard key={multa.id} multa={multa} ra={aluno?.ra ?? '—'} />)
+        <>
+          {pendentes.length > 0 && (
+            <MultaSection title="Pendentes" multas={pendentes} ra={aluno?.ra ?? '—'} />
+          )}
+          {quitadas.length > 0 && (
+            <MultaSection
+              title="Quitadas"
+              multas={quitadas}
+              ra={aluno?.ra ?? '—'}
+              style={pendentes.length > 0 ? styles.sectionSpaced : undefined}
+            />
+          )}
+        </>
       )}
     </ScrollView>
+  );
+}
+
+function MultaSection({
+  title,
+  multas,
+  ra,
+  style,
+}: {
+  title: string;
+  multas: MultaComAluguel[];
+  ra: string;
+  style?: object;
+}) {
+  return (
+    <View style={style}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {multas.map((multa) => (
+        <MultaCard key={multa.id} multa={multa} ra={ra} />
+      ))}
+    </View>
   );
 }
 
@@ -54,7 +142,7 @@ function MultaCard({ multa, ra }: { multa: MultaComAluguel; ra: string }) {
   const [expanded, setExpanded] = useState(false);
   const pendente = multa.status === 'pendente';
   const itemNome = multa.alugueis?.itens?.nome ?? 'Item';
-  const valor = Number(multa.valor).toFixed(2).replace('.', ',');
+  const valor = formatMoney(Number(multa.valor));
 
   const toggle = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -64,18 +152,16 @@ function MultaCard({ multa, ra }: { multa: MultaComAluguel; ra: string }) {
   return (
     <View style={[styles.card, !pendente && styles.cardPaid]}>
       <Pressable
-        style={({ pressed }) => [styles.cardHeader, pressed && styles.cardHeaderPressed]}
+        style={({ pressed }) => [styles.cardHeader, pressed && cardPressed(true)]}
         onPress={toggle}
         accessibilityLabel={`Multa ${itemNome}, ${pendente ? 'pendente' : 'paga'}`}
+        accessibilityState={{ expanded }}
       >
         <View
-          style={[
-            styles.statusIcon,
-            pendente ? styles.statusPending : styles.statusPaid,
-          ]}
+          style={[styles.statusIcon, pendente ? styles.statusPending : styles.statusPaid]}
         >
           <Ionicons
-            name={pendente ? 'warning-outline' : 'checkmark-circle-outline'}
+            name={pendente ? 'alert-circle-outline' : 'checkmark-circle-outline'}
             size={20}
             color={pendente ? '#d97706' : colors.successText}
             accessibilityElementsHidden
@@ -84,16 +170,20 @@ function MultaCard({ multa, ra }: { multa: MultaComAluguel; ra: string }) {
         <View style={styles.cardHeaderText}>
           <Text style={styles.cardTitle}>{itemNome}</Text>
           <Text style={styles.cardStatus}>
-            {pendente ? 'Pendente' : 'Pago'} · R$ {valor}
+            {pendente ? 'Aguardando pagamento na tesouraria' : 'Paga na tesouraria'}
           </Text>
         </View>
-        <Ionicons
-          name="chevron-forward"
-          size={18}
-          color={colors.inactive}
-          style={{ transform: [{ rotate: expanded ? '90deg' : '0deg' }] }}
-          accessibilityElementsHidden
-        />
+        <View style={styles.cardRight}>
+          <Text style={[styles.valorBadge, !pendente && styles.valorBadgePaid]}>
+            R$ {valor}
+          </Text>
+          <Ionicons
+            name={expanded ? 'chevron-up' : 'chevron-down'}
+            size={18}
+            color={colors.inactive}
+            accessibilityElementsHidden
+          />
+        </View>
       </Pressable>
 
       {expanded && (
@@ -109,12 +199,12 @@ function MultaCard({ multa, ra }: { multa: MultaComAluguel; ra: string }) {
           {multa.alugueis?.fim_real && (
             <BodyLine
               icon="close-circle-outline"
-              text={`Devolvido em: ${formatDateTime(multa.alugueis.fim_real)} (${multa.dias_atraso} dias de atraso)`}
+              text={`Devolvido em: ${formatDateTime(multa.alugueis.fim_real)} (${multa.dias_atraso} ${multa.dias_atraso === 1 ? 'dia' : 'dias'} de atraso)`}
             />
           )}
           <BodyLine
             icon="cash-outline"
-            text={`Cálculo: ${multa.dias_atraso} dias × R$5,00/dia = R$${valor}`}
+            text={`Cálculo: ${multa.dias_atraso} ${multa.dias_atraso === 1 ? 'dia' : 'dias'} × R$ 5,00 = R$ ${valor}`}
           />
           <BodyLine icon="school-outline" text={`RA: ${ra}`} />
         </View>
@@ -134,49 +224,163 @@ function BodyLine({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: 
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.screenBg },
-  content: { padding: 16, paddingBottom: 40 },
-  backSpacing: { marginBottom: 12 },
-  title: { fontSize: 22, fontWeight: '700', color: colors.primaryVeryDark },
-  subtitle: { fontSize: 13, color: colors.textMuted, marginTop: 4, marginBottom: 16 },
+  backSpacing: { marginBottom: 8 },
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.primaryVeryDark,
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: colors.textMuted,
+    marginBottom: 16,
+  },
+  infoCard: {
+    ...card,
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.primary,
+  },
+  infoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  infoIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoTitle: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.primaryVeryDark,
+  },
+  infoBullet: {
+    fontSize: 13,
+    color: colors.primaryVeryDark,
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  infoEmphasis: {
+    fontWeight: '700',
+    color: colors.primaryDark,
+  },
+  summaryCard: {
+    ...card,
+    backgroundColor: colors.dangerBg,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    ...border,
+    borderColor: '#fecaca',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.dangerText,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  summaryCount: {
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  summaryValue: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.dangerText,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 10,
+  },
+  sectionSpaced: {
+    marginTop: 24,
+  },
   emptyCard: {
+    ...card,
     backgroundColor: colors.successBg,
     borderRadius: 12,
-    padding: 24,
+    padding: 28,
     alignItems: 'center',
+    gap: 8,
     borderWidth: 1,
     borderStyle: 'solid',
     borderColor: '#bbf7d0',
   },
-  emptyText: { fontSize: 15, fontWeight: '600', color: colors.successText },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.successText,
+    marginTop: 4,
+  },
+  emptyText: {
+    fontSize: 13,
+    color: colors.successText,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
   card: {
     backgroundColor: colors.white,
     borderRadius: 12,
     marginBottom: 10,
     ...card,
     overflow: 'hidden',
-    elevation: 2,
   },
-  cardPaid: { opacity: 0.6 },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
-  cardHeaderPressed: { backgroundColor: colors.background },
+  cardPaid: { opacity: 0.75 },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    gap: 12,
+  },
   statusIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   statusPending: { backgroundColor: colors.warningBg },
   statusPaid: { backgroundColor: colors.successBg },
-  cardHeaderText: { flex: 1 },
-  cardTitle: { fontSize: 14, fontWeight: '600', color: colors.primaryVeryDark },
-  cardStatus: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  cardHeaderText: { flex: 1, minWidth: 0 },
+  cardTitle: { fontSize: 15, fontWeight: '600', color: colors.primaryVeryDark },
+  cardStatus: { fontSize: 12, color: colors.textMuted, marginTop: 3, lineHeight: 16 },
+  cardRight: { alignItems: 'flex-end', gap: 4 },
+  valorBadge: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.dangerText,
+  },
+  valorBadgePaid: {
+    color: colors.successText,
+  },
   cardBody: {
     paddingHorizontal: 14,
     paddingBottom: 14,
-    borderTopWidth: 0.5,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
-    gap: 10,
+    gap: 2,
   },
   bodyLine: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 10 },
   bodyText: { flex: 1, fontSize: 13, color: colors.primaryVeryDark, lineHeight: 20 },

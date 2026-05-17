@@ -1,13 +1,24 @@
-import * as Notifications from 'expo-notifications';
 import type { WeatherSnapshot } from '../weather';
 import type { AluguelComItem, MultaComAluguel } from '../../types/database';
 import { NOTIFICATION_ID_PREFIX } from './constants';
 import { markNotified } from './notifiedStore';
 import { planStudentNotifications } from './planStudentNotifications';
 import { getNotificationPermissionState } from './permissions';
-import { getNotificationsEnabled } from './preferences';
+import { getNotificationsEnabled, notificationsSupportedOnPlatform } from './preferences';
+
+function getNotificationsModule(): typeof import('expo-notifications') | null {
+  if (!notificationsSupportedOnPlatform()) return null;
+  try {
+    return require('expo-notifications') as typeof import('expo-notifications');
+  } catch {
+    return null;
+  }
+}
 
 async function cancelStudentScheduledNotifications(): Promise<void> {
+  const Notifications = getNotificationsModule();
+  if (!Notifications) return;
+
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   await Promise.all(
     scheduled
@@ -22,6 +33,9 @@ export async function syncStudentNotifications(input: {
   multasPendentes: MultaComAluguel[];
   weather: WeatherSnapshot | null;
 }): Promise<void> {
+  const Notifications = getNotificationsModule();
+  if (!Notifications) return;
+
   const enabled = await getNotificationsEnabled();
   if (!enabled) {
     await cancelStudentScheduledNotifications();

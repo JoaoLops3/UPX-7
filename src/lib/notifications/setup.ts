@@ -1,20 +1,34 @@
-import * as Notifications from 'expo-notifications';
 import { navigateRoot, navigateToHomeTab, navigateToReturn, navigateToScan } from '../../navigation/rootNavigation';
 import type { NotificationKind } from './constants';
 import { notificationsSupportedOnPlatform } from './preferences';
 
-let responseSubscription: Notifications.Subscription | null = null;
+type NotificationSubscription = { remove: () => void };
+let responseSubscription: NotificationSubscription | null = null;
+
+function getNotificationsModule(): typeof import('expo-notifications') | null {
+  if (!notificationsSupportedOnPlatform()) return null;
+  try {
+    return require('expo-notifications') as typeof import('expo-notifications');
+  } catch {
+    return null;
+  }
+}
 
 export function configureNotificationHandler(): void {
-  if (!notificationsSupportedOnPlatform()) return;
+  const Notifications = getNotificationsModule();
+  if (!Notifications) return;
 
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-    }),
-  });
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+  } catch {
+    /* módulo nativo indisponível */
+  }
 }
 
 function handleNotificationNavigation(data: Record<string, unknown> | undefined): void {
@@ -39,13 +53,19 @@ function handleNotificationNavigation(data: Record<string, unknown> | undefined)
 }
 
 export function attachNotificationResponseListener(): void {
-  if (!notificationsSupportedOnPlatform()) return;
-  responseSubscription?.remove();
-  responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
-    handleNotificationNavigation(
-      response.notification.request.content.data as Record<string, unknown> | undefined,
-    );
-  });
+  const Notifications = getNotificationsModule();
+  if (!Notifications) return;
+
+  try {
+    responseSubscription?.remove();
+    responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      handleNotificationNavigation(
+        response.notification.request.content.data as Record<string, unknown> | undefined,
+      );
+    });
+  } catch {
+    /* ignorar */
+  }
 }
 
 export function detachNotificationResponseListener(): void {

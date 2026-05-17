@@ -14,6 +14,7 @@ import { useAluno } from '../hooks/useAluno';
 import { useMultas } from '../hooks/useMultas';
 import { useScreenContentInsets } from '../hooks/useScreenContentInsets';
 import { useAuth } from '../contexts/AuthContext';
+import { notificationsSupportedOnPlatform } from '../lib/notifications/preferences';
 import { navigateRoot } from '../navigation/rootNavigation';
 import type { ProfileStackScreenProps } from '../navigation/types';
 import { colors } from '../theme/colors';
@@ -92,12 +93,14 @@ export default function ProfileScreen({ navigation }: Props) {
           subtitle="em breve"
           onPress={() => Alert.alert('Em breve', 'Carteirinha NFC disponível em breve.')}
         />
-        <MenuItem
-          icon="notifications-outline"
-          label="Notificações"
-          subtitle="Alertas do celular"
-          onPress={() => navigation.navigate('NotificationSettings')}
-        />
+        {notificationsSupportedOnPlatform() ? (
+          <MenuItem
+            icon="notifications-outline"
+            label="Notificações"
+            subtitle="Alertas automáticos · testar avisos"
+            onPress={() => navigation.navigate('NotificationSettings')}
+          />
+        ) : null}
         <MenuItem
           icon="help-circle-outline"
           label="Ajuda e suporte"

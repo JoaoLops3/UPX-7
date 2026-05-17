@@ -6,6 +6,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { StatusBar } from 'expo-status-bar';
+import { AppErrorBoundary } from './src/components/AppErrorBoundary';
 import { LoadingView } from './src/components/LoadingView';
 import { PrimaryButton } from './src/components/PrimaryButton';
 import { SupabaseErrorBanner } from './src/components/SupabaseErrorBanner';
@@ -115,15 +116,17 @@ export default function App() {
   }
 
   return (
-    <GestureHandlerRootView style={styles.root} onLayout={onLayout}>
-      <SafeAreaProvider>
-        <AuthProvider>
-          <WebLayout>
-            <AuthenticatedApp />
-          </WebLayout>
-        </AuthProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <AppErrorBoundary>
+      <GestureHandlerRootView style={styles.root} onLayout={onLayout}>
+        <SafeAreaProvider>
+          <AuthProvider>
+            <WebLayout>
+              <AuthenticatedApp />
+            </WebLayout>
+          </AuthProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </AppErrorBoundary>
   );
 }
 

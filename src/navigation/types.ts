@@ -37,6 +37,7 @@ export type RootStackParamList = {
   Active: undefined;
   Devolucao: undefined;
   Fines: undefined;
+  NotificationSettings: undefined;
 };
 
 export type HomeStackScreenProps<T extends keyof HomeStackParamList> = CompositeScreenProps<

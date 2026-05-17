@@ -32,6 +32,9 @@ export function navigateRoot<RouteName extends keyof RootStackParamList>(
     case 'Fines':
       navigationRef.navigate('Profile', { screen: 'Fines' });
       return;
+    case 'NotificationSettings':
+      navigationRef.navigate('Profile', { screen: 'NotificationSettings' });
+      return;
     default:
       return;
   }
@@ -63,4 +66,9 @@ export function navigateToScan(item?: ItemTipo) {
 export function navigateToProfile() {
   if (!navigationRef.isReady()) return;
   navigationRef.navigate('Profile', { screen: 'ProfileMain' });
+}
+
+export function navigateToNotificationSettings() {
+  if (!navigationRef.isReady()) return;
+  navigationRef.navigate('Profile', { screen: 'NotificationSettings' });
 }
