@@ -37,6 +37,12 @@ export function navigateRoot<RouteName extends keyof RootStackParamList>(
     case 'Help':
       navigationRef.navigate('Profile', { screen: 'Help' });
       return;
+    case 'TotemScan':
+      navigationRef.navigate('TotemScan');
+      return;
+    case 'Notifications':
+      navigationRef.navigate('Notifications');
+      return;
     default:
       return;
   }

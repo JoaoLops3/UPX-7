@@ -13,6 +13,7 @@ export type AdminTabParamList = {
 export type AdminStackParamList = {
   AdminTabs: undefined;
   AdminLogsNfc: undefined;
+  AdminAlunoDetail: { alunoId: string };
 };
 
 export type AdminTabScreenProps<T extends keyof AdminTabParamList> = CompositeScreenProps<

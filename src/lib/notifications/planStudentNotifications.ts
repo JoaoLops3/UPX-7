@@ -11,6 +11,7 @@ import { isQuadraReservaRow } from '../quadraReserva';
 import type { WeatherSnapshot } from '../weather';
 import type { AluguelComItem, MultaComAluguel } from '../../types/database';
 import { formatDate, formatTime } from '../../utils/dates';
+import { calcularValorMulta } from '../multaCalculo';
 import { NOTIFICATION_ID_PREFIX, RAIN_NOTIFY_COOLDOWN_MS, type NotificationKind } from './constants';
 import { wasNotifiedRecently } from './notifiedStore';
 
@@ -209,7 +210,8 @@ export async function planStudentNotifications(input: {
   }
 
   for (const multa of multasPendentes) {
-    const valor = Number(multa.valor).toFixed(2).replace('.', ',');
+    const dias = multa.dias_atraso ?? 0;
+    const valor = calcularValorMulta(dias).toFixed(2).replace('.', ',');
     const itemNome = multa.alugueis?.itens?.nome ?? 'item';
     const multaPlan = await immediateIfAllowed({
       id: `${NOTIFICATION_ID_PREFIX}multa:${multa.id}`,

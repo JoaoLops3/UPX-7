@@ -32,6 +32,7 @@
     "expo": "~52.0.46",
     "expo-asset": "~11.0.5",
     "expo-background-fetch": "~13.0.6",
+    "expo-camera": "~16.0.18",
     "expo-device": "~7.0.3",
     "expo-font": "~13.0.4",
     "expo-notifications": "~0.29.14",
@@ -41,8 +42,10 @@
     "react-dom": "18.3.1",
     "react-native": "0.76.9",
     "react-native-gesture-handler": "~2.20.2",
+    "react-native-qrcode-svg": "^6.3.21",
     "react-native-safe-area-context": "4.12.0",
     "react-native-screens": "~4.4.0",
+    "react-native-svg": "15.8.0",
     "react-native-web": "~0.19.13"
   },
   "devDependencies": {

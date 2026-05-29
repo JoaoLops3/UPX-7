@@ -8,12 +8,15 @@ const timeFormatter = new Intl.DateTimeFormat('pt-BR', {
   minute: '2-digit',
 });
 
+const CAMPUS_TIMEZONE = 'America/Sao_Paulo';
+
 const fullFormatter = new Intl.DateTimeFormat('pt-BR', {
   day: '2-digit',
   month: 'long',
   year: 'numeric',
   hour: '2-digit',
   minute: '2-digit',
+  timeZone: CAMPUS_TIMEZONE,
 });
 
 function isSameDay(a: Date, b: Date): boolean {
@@ -70,6 +73,18 @@ export function formatDuration(ms: number): string {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
   if (hours > 0 && minutes > 0) return `${hours}h ${minutes}min`;
+  if (hours > 0) return `${hours}h`;
+  return `${minutes}min`;
+}
+
+/** Formato curto para cards estreitos (ex.: estatísticas do perfil). */
+export function formatDurationCompact(ms: number): string {
+  const totalMinutes = Math.floor(ms / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours >= 1000) return `${Math.floor(hours / 24)} dias`;
+  if (hours >= 100) return `${hours}h`;
+  if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
   if (hours > 0) return `${hours}h`;
   return `${minutes}min`;
 }

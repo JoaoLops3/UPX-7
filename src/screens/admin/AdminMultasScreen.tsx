@@ -3,6 +3,7 @@ import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native
 import { useFocusEffect } from '@react-navigation/native';
 import { AdminListCard } from '../../components/admin/AdminListCard';
 import { LoadingView } from '../../components/LoadingView';
+import { upsertPaidMultaAlert } from '../../lib/adminMultaAlerts';
 import { supabase } from '../../lib/supabase';
 import type { AdminTabScreenProps } from '../../navigation/adminTypes';
 import { colors } from '../../theme/colors';
@@ -39,10 +40,19 @@ export default function AdminMultasScreen(_props: Props) {
       {
         text: 'Confirmar',
         onPress: async () => {
+          const pagoEm = new Date().toISOString();
           await supabase
             .from('multas')
-            .update({ status: 'pago', pago_em: new Date().toISOString() })
+            .update({ status: 'pago', pago_em: pagoEm })
             .eq('id', multa.id);
+          if (multa.aluno_id) {
+            await upsertPaidMultaAlert(multa.aluno_id, {
+              id: multa.id,
+              dias_atraso: multa.dias_atraso,
+              gerada_em: multa.gerada_em ?? pagoEm,
+              itemNome: multa.alugueis?.itens?.nome,
+            });
+          }
           void load();
         },
       },

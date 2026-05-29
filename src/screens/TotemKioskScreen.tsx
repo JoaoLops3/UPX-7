@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import QRCode from 'react-native-qrcode-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
+import { useTotemQrSession } from '../hooks/useTotemQrSession';
 import { supabase } from '../lib/supabase';
 import { colors } from '../theme/colors';
 import { border } from '../theme/ui';
@@ -28,6 +30,18 @@ export default function TotemKioskScreen() {
   useEffect(() => {
     alunoRef.current = aluno;
   }, [aluno]);
+
+  const handleIdentified = useCallback((resolved: TotemAluno) => {
+    if (alunoRef.current) return;
+    if (avisoTimer.current) clearTimeout(avisoTimer.current);
+    setAviso(null);
+    setAluno(resolved);
+  }, []);
+
+  const { qrValue } = useTotemQrSession({
+    enabled: !aluno,
+    onIdentified: handleIdentified,
+  });
 
   useEffect(() => {
     const animation = Animated.loop(
@@ -58,9 +72,7 @@ export default function TotemKioskScreen() {
             const resolved = (data as TotemAluno | null) ?? null;
 
             if (resolved?.id) {
-              if (avisoTimer.current) clearTimeout(avisoTimer.current);
-              setAviso(null);
-              setAluno(resolved);
+              handleIdentified(resolved);
             } else {
               setAviso('Cartão não reconhecido. Procure a administração.');
               if (avisoTimer.current) clearTimeout(avisoTimer.current);
@@ -75,7 +87,7 @@ export default function TotemKioskScreen() {
       if (avisoTimer.current) clearTimeout(avisoTimer.current);
       void supabase.removeChannel(channel);
     };
-  }, []);
+  }, [handleIdentified]);
 
   const handleFinish = useCallback(() => setAluno(null), []);
 
@@ -106,7 +118,11 @@ export default function TotemKioskScreen() {
         <Text style={styles.headerText}>Totem UPX 7</Text>
       </Pressable>
 
-      <View style={styles.center}>
+      <ScrollView
+        style={styles.centerScroll}
+        contentContainerStyle={styles.centerScrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {aviso ? (
           <View style={[styles.card, { borderColor: colors.dangerText }]} accessibilityRole="alert">
             <View style={[styles.iconWrap, { borderColor: colors.dangerText }]}>
@@ -124,9 +140,27 @@ export default function TotemKioskScreen() {
             <Text style={styles.idleSubtitle}>
               Encoste o cartão para se identificar e escolher: alugar, fazer check-in ou devolver.
             </Text>
+
+            <View style={styles.qrSection}>
+              <View style={styles.qrDividerRow}>
+                <View style={styles.qrDividerLine} />
+                <Text style={styles.qrDividerText}>ou pelo app</Text>
+                <View style={styles.qrDividerLine} />
+              </View>
+              <View style={styles.qrCard}>
+                {qrValue ? (
+                  <QRCode value={qrValue} size={140} color={colors.primaryVeryDark} backgroundColor={colors.white} />
+                ) : (
+                  <View style={styles.qrPlaceholder}>
+                    <Ionicons name="qr-code-outline" size={48} color={colors.textMuted} accessibilityElementsHidden />
+                  </View>
+                )}
+              </View>
+              <Text style={styles.qrHint}>Escaneie este código no app UPX 7</Text>
+            </View>
           </>
         )}
-      </View>
+      </ScrollView>
 
       <Pressable
         onPress={handleLogout}
@@ -147,7 +181,13 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.screenBg, paddingHorizontal: 24 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'center' },
   headerText: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  centerScroll: { flex: 1 },
+  centerScrollContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+  },
   pulseCircle: {
     width: 180,
     height: 180,
@@ -167,6 +207,36 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingHorizontal: 24,
     lineHeight: 22,
+  },
+  qrSection: { alignItems: 'center', marginTop: 28, width: '100%' },
+  qrDividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 24,
+    marginBottom: 16,
+    width: '100%',
+  },
+  qrDividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  qrDividerText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
+  qrCard: {
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: colors.white,
+    ...border,
+  },
+  qrPlaceholder: {
+    width: 140,
+    height: 140,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qrHint: {
+    fontSize: 14,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: 12,
+    paddingHorizontal: 24,
   },
   card: {
     alignItems: 'center',

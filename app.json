@@ -30,6 +30,12 @@
     },
     "plugins": [
       "expo-font",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "O UPX 7 usa a câmera para ler o QR Code do totem."
+        }
+      ],
       "./plugins/withFmtXcodeFix.js",
       "./plugins/withLocalNotificationsOnly.js",
       "./plugins/withIosLocalNetworkMetro.js",

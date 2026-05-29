@@ -18,6 +18,10 @@ import ActiveScreen from '../screens/ActiveScreen';
 import FinesScreen from '../screens/FinesScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import HelpScreen from '../screens/HelpScreen';
+import TotemScanScreen from '../screens/TotemScanScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
+import { useAluno } from '../hooks/useAluno';
+import { StudentAlertsProvider } from '../hooks/useStudentAlerts';
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
 const HomeStack = createStackNavigator<HomeStackParamList>();
@@ -60,8 +64,11 @@ function ProfileStackNavigator() {
 }
 
 export function StudentNavigator() {
+  const { aluno } = useAluno();
+
   return (
-    <Tab.Navigator
+    <StudentAlertsProvider alunoId={aluno?.id ?? ''}>
+      <Tab.Navigator
       tabBar={(props) => <StudentTabBar {...props} />}
       screenListeners={{
         tabPress: () => blurFocusedElementOnWeb(),
@@ -122,6 +129,36 @@ export function StudentNavigator() {
         }}
       />
       <Tab.Screen
+        name="TotemScan"
+        component={TotemScanScreen}
+        options={{
+          tabBarLabel: 'QR',
+          tabBarAccessibilityLabel: 'Ler QR Code do totem',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? 'scan' : 'scan-outline'}
+              size={26}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Notifications"
+        component={NotificationsScreen}
+        options={{
+          tabBarLabel: 'Avisos',
+          tabBarAccessibilityLabel: 'Notificações e avisos',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? 'notifications' : 'notifications-outline'}
+              size={22}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tab.Screen
         name="Profile"
         component={ProfileStackNavigator}
         options={{
@@ -136,5 +173,6 @@ export function StudentNavigator() {
         }}
       />
     </Tab.Navigator>
+    </StudentAlertsProvider>
   );
 }

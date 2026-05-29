@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { MultaComAluguel } from '../types/database';
+import { calcularValorMulta } from '../lib/multaCalculo';
 
 export function useMultas(alunoId: string) {
   const [multas, setMultas] = useState<MultaComAluguel[]>([]);
@@ -34,7 +35,7 @@ export function useMultas(alunoId: string) {
     () =>
       multas
         .filter((m) => m.status === 'pendente')
-        .reduce((sum, m) => sum + Number(m.valor), 0),
+        .reduce((sum, m) => sum + calcularValorMulta(m.dias_atraso ?? 0), 0),
     [multas],
   );
 

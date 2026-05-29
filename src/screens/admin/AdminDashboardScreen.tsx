@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LoadingView } from '../../components/LoadingView';
@@ -115,10 +115,15 @@ function StatBox({
     <Pressable
       style={({ pressed }) => [styles.statBox, pressed && styles.statPressed]}
       onPress={onPress}
-      accessibilityLabel={label}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}. Toque para abrir`}
     >
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
+      <View style={styles.statFooter}>
+        <Text style={styles.statLink}>Ver detalhes</Text>
+        <Ionicons name="chevron-forward" size={14} color={colors.primaryDark} accessibilityElementsHidden />
+      </View>
     </Pressable>
   );
 }
@@ -150,10 +155,18 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     minWidth: 140,
     padding: 14,
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
   },
   statPressed: { backgroundColor: colors.background },
   statValue: { fontSize: 28, fontWeight: '700', color: colors.primaryDark },
   statLabel: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
+  statFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginTop: 10,
+  },
+  statLink: { fontSize: 11, fontWeight: '600', color: colors.primaryDark },
   hint: { fontSize: 13, color: colors.textMuted, marginTop: 20, lineHeight: 20 },
   logsLink: {
     flexDirection: 'row',

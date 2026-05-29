@@ -15,11 +15,13 @@ import { LoadingView } from '../components/LoadingView';
 import { useAluno } from '../hooks/useAluno';
 import { useMultas } from '../hooks/useMultas';
 import { useScreenContentInsets } from '../hooks/useScreenContentInsets';
+import { getStudentTabBarInset } from '../navigation/StudentTabBar';
 import type { ProfileStackScreenProps } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { border, card, cardPressed } from '../theme/ui';
 import type { MultaComAluguel } from '../types/database';
 import { formatDateTime } from '../utils/dates';
+import { calcularValorMulta, formatMultaCalculo } from '../lib/multaCalculo';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -32,7 +34,7 @@ function formatMoney(value: number) {
 }
 
 export default function FinesScreen({ navigation }: Props) {
-  const { contentContainerStyle } = useScreenContentInsets(40);
+  const { contentContainerStyle } = useScreenContentInsets(getStudentTabBarInset());
   const { aluno, loading: alunoLoading } = useAluno();
   const { multas, totalPendente, loading } = useMultas(aluno?.id ?? '');
 
@@ -61,8 +63,9 @@ export default function FinesScreen({ navigation }: Props) {
           <Text style={styles.infoTitle}>Como funcionam as multas</Text>
         </View>
         <Text style={styles.infoBullet}>
-          • Multa de <Text style={styles.infoEmphasis}>R$ 5,00 por dia</Text> de atraso na
-          devolução do item.
+          • Multa proporcional por <Text style={styles.infoEmphasis}>dia de atraso</Text>:{' '}
+          <Text style={styles.infoEmphasis}>R$ 5,00 a cada 7 dias</Text> (≈ R$ 0,71/dia) na
+          devolução do guarda-chuva.
         </Text>
         <Text style={styles.infoBullet}>
           • O valor é registrado automaticamente no seu RA quando você devolve após o prazo.
@@ -142,7 +145,10 @@ function MultaCard({ multa, ra }: { multa: MultaComAluguel; ra: string }) {
   const [expanded, setExpanded] = useState(false);
   const pendente = multa.status === 'pendente';
   const itemNome = multa.alugueis?.itens?.nome ?? 'Item';
-  const valor = formatMoney(Number(multa.valor));
+  const valor = formatMoney(calcularValorMulta(multa.dias_atraso ?? 0));
+  const prazoDevolucao = multa.alugueis?.fim_previsto;
+  const devolvidoEm = multa.alugueis?.fim_real;
+  const alugadoEm = multa.alugueis?.inicio;
 
   const toggle = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -190,21 +196,21 @@ function MultaCard({ multa, ra }: { multa: MultaComAluguel; ra: string }) {
         <View style={styles.cardBody}>
           <BodyLine
             icon="calendar-outline"
-            text={`Alugado em: ${formatDateTime(multa.alugueis?.inicio ?? multa.gerada_em ?? '')}`}
+            text={`Alugado em: ${alugadoEm ? formatDateTime(alugadoEm) : '—'}`}
           />
           <BodyLine
             icon="time-outline"
-            text={`Devolver até: ${formatDateTime(multa.alugueis?.fim_previsto ?? multa.gerada_em)}`}
+            text={`Devolver até: ${prazoDevolucao ? formatDateTime(prazoDevolucao) : '—'}`}
           />
-          {multa.alugueis?.fim_real && (
+          {devolvidoEm && (
             <BodyLine
               icon="close-circle-outline"
-              text={`Devolvido em: ${formatDateTime(multa.alugueis.fim_real)} (${multa.dias_atraso} ${multa.dias_atraso === 1 ? 'dia' : 'dias'} de atraso)`}
+              text={`Devolvido em: ${formatDateTime(devolvidoEm)} (${multa.dias_atraso} ${multa.dias_atraso === 1 ? 'dia' : 'dias'} de atraso)`}
             />
           )}
           <BodyLine
             icon="cash-outline"
-            text={`Cálculo: ${multa.dias_atraso} ${multa.dias_atraso === 1 ? 'dia' : 'dias'} × R$ 5,00 = R$ ${valor}`}
+            text={`Cálculo: ${formatMultaCalculo(multa.dias_atraso)}`}
           />
           <BodyLine icon="school-outline" text={`RA: ${ra}`} />
         </View>

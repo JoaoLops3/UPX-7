@@ -13,13 +13,14 @@ import { useAlugueis } from '../hooks/useAlugueis';
 import { useAluno } from '../hooks/useAluno';
 import { useMultas } from '../hooks/useMultas';
 import { useScreenContentInsets } from '../hooks/useScreenContentInsets';
+import { getStudentTabBarInset } from '../navigation/StudentTabBar';
 import { useAuth } from '../contexts/AuthContext';
 import { notificationsSupportedOnPlatform } from '../lib/notifications/preferences';
 import { navigateRoot } from '../navigation/rootNavigation';
 import type { ProfileStackScreenProps } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { border, card, cardPressed } from '../theme/ui';
-import { formatDuration } from '../utils/dates';
+import { formatDurationCompact } from '../utils/dates';
 import { getInitials } from '../utils/initials';
 
 type Props = ProfileStackScreenProps<'ProfileMain'>;
@@ -29,7 +30,7 @@ export default function ProfileScreen({ navigation }: Props) {
   const { aluno, loading: alunoLoading } = useAluno();
   const { alugueis, loading: alugueisLoading } = useAlugueis(aluno?.id ?? '');
   const { multas, totalPendente, loading: multasLoading } = useMultas(aluno?.id ?? '');
-  const { contentContainerStyle } = useScreenContentInsets(40);
+  const { contentContainerStyle } = useScreenContentInsets(getStudentTabBarInset());
 
   const pendentes = multas.filter((m) => m.status === 'pendente').length;
 
@@ -41,7 +42,7 @@ export default function ProfileScreen({ navigation }: Props) {
         const inicio = new Date(a.inicio ?? 0).getTime();
         return sum + (fim - inicio);
       }, 0);
-    return formatDuration(totalMs);
+    return formatDurationCompact(totalMs);
   }, [alugueis]);
 
   const handleSignOut = async () => {
@@ -72,10 +73,17 @@ export default function ProfileScreen({ navigation }: Props) {
           onPress={() => navigateRoot('Fines')}
           accessibilityLabel="Ver multas pendentes"
         >
-          <Text style={[styles.statValue, pendentes > 0 && styles.statDanger]}>
+          <Text
+            style={[styles.statValue, pendentes > 0 && styles.statDanger]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.75}
+          >
             {pendentes}
           </Text>
-          <Text style={styles.statLabel}>Multas</Text>
+          <Text style={styles.statLabel} numberOfLines={1}>
+            Multas
+          </Text>
         </Pressable>
       </View>
 
@@ -86,6 +94,12 @@ export default function ProfileScreen({ navigation }: Props) {
           label="Minhas multas"
           badge={pendentes > 0 ? String(pendentes) : undefined}
           onPress={() => navigateRoot('Fines')}
+        />
+        <MenuItem
+          icon="qr-code-outline"
+          label="Identificar no totem"
+          subtitle="Abrir leitor de QR Code na barra inferior"
+          onPress={() => navigateRoot('TotemScan')}
         />
         <MenuItem
           icon="card-outline"
@@ -138,10 +152,21 @@ export default function ProfileScreen({ navigation }: Props) {
 }
 
 function StatCard({ label, value }: { label: string; value: string }) {
+  const compactValue = value.length > 9;
+
   return (
     <View style={styles.statCard}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Text
+        style={[styles.statValue, compactValue && styles.statValueCompact]}
+        numberOfLines={2}
+        adjustsFontSizeToFit
+        minimumFontScale={0.75}
+      >
+        {value}
+      </Text>
+      <Text style={styles.statLabel} numberOfLines={2}>
+        {label}
+      </Text>
     </View>
   );
 }
@@ -203,18 +228,33 @@ const styles = StyleSheet.create({
   avatarText: { fontSize: 20, fontWeight: '700', color: colors.primaryDark },
   nome: { fontSize: 18, fontWeight: '600', color: colors.primaryVeryDark },
   ra: { fontSize: 14, color: colors.textMuted, marginTop: 2, fontVariant: ['tabular-nums'] },
-  statsRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
+  statsRow: { flexDirection: 'row', gap: 8, marginBottom: 20, width: '100%' },
   statCard: {
     flex: 1,
+    minWidth: 0,
     ...card,
     backgroundColor: colors.background,
-    padding: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
     alignItems: 'center',
   },
   statPressed: cardPressed(true),
-  statValue: { fontSize: 18, fontWeight: '700', color: colors.primaryDark },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.primaryDark,
+    textAlign: 'center',
+    width: '100%',
+  },
+  statValueCompact: { fontSize: 14, lineHeight: 18 },
   statDanger: { color: colors.dangerText },
-  statLabel: { fontSize: 11, color: colors.textMuted, marginTop: 4, textAlign: 'center' },
+  statLabel: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 4,
+    textAlign: 'center',
+    width: '100%',
+  },
   menuCard: {
     ...card,
     marginBottom: 20,

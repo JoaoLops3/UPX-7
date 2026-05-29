@@ -1,6 +1,7 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BackButton } from '../components/BackButton';
 import { useScreenContentInsets } from '../hooks/useScreenContentInsets';
+import { getStudentTabBarInset } from '../navigation/StudentTabBar';
 import type { ProfileStackScreenProps } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { card } from '../theme/ui';
@@ -44,7 +45,7 @@ const FAQ = [
 ];
 
 export default function HelpScreen({ navigation }: Props) {
-  const { contentContainerStyle } = useScreenContentInsets(40);
+  const { contentContainerStyle } = useScreenContentInsets(getStudentTabBarInset());
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={contentContainerStyle}>

@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { NavigationContainer } from '@react-navigation/native';
@@ -13,6 +13,7 @@ import AdminItensScreen from '../screens/admin/AdminItensScreen';
 import AdminAlunosScreen from '../screens/admin/AdminAlunosScreen';
 import AdminMultasScreen from '../screens/admin/AdminMultasScreen';
 import AdminLogsNfcScreen from '../screens/admin/AdminLogsNfcScreen';
+import AdminAlunoDetailScreen from '../screens/admin/AdminAlunoDetailScreen';
 
 const Tab = createBottomTabNavigator<AdminTabParamList>();
 const Stack = createStackNavigator<AdminStackParamList>();
@@ -96,12 +97,24 @@ function AdminTabs() {
 
 export function AdminNavigation() {
   return (
-    <NavigationContainer independent>
-      <StatusBar style="dark" />
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="AdminTabs" component={AdminTabs} />
-        <Stack.Screen name="AdminLogsNfc" component={AdminLogsNfcScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <View style={styles.navRoot}>
+      <NavigationContainer independent>
+        <StatusBar style="dark" />
+        <Stack.Navigator
+          screenOptions={{
+            headerShown: false,
+            cardStyle: { flex: 1, backgroundColor: colors.screenBg },
+          }}
+        >
+          <Stack.Screen name="AdminTabs" component={AdminTabs} />
+          <Stack.Screen name="AdminLogsNfc" component={AdminLogsNfcScreen} />
+          <Stack.Screen name="AdminAlunoDetail" component={AdminAlunoDetailScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  navRoot: { flex: 1 },
+});

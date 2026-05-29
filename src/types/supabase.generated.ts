@@ -255,6 +255,39 @@ export type Database = {
         };
         Relationships: [];
       };
+      totem_sessoes_qr: {
+        Row: {
+          aluno_id: string | null;
+          criado_em: string;
+          expira_em: string;
+          id: string;
+          identificado_em: string | null;
+          status: string;
+          token: string;
+          uid_totem: string;
+        };
+        Insert: {
+          aluno_id?: string | null;
+          criado_em?: string;
+          expira_em: string;
+          id?: string;
+          identificado_em?: string | null;
+          status?: string;
+          token: string;
+          uid_totem: string;
+        };
+        Update: {
+          aluno_id?: string | null;
+          criado_em?: string;
+          expira_em?: string;
+          id?: string;
+          identificado_em?: string | null;
+          status?: string;
+          token?: string;
+          uid_totem?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -266,8 +299,14 @@ export type Database = {
       lookup_aluno_email_for_login: { Args: { p_ra: string }; Returns: string };
       totem_alugar_guarda_chuva: { Args: { p_aluno_id: string }; Returns: Json };
       totem_aluno_nome: { Args: { p_uid: string }; Returns: string };
+      totem_aluno_por_id: { Args: { p_aluno_id: string }; Returns: Json };
       totem_aluno_por_uid: { Args: { p_uid: string }; Returns: Json };
       totem_checkin_quadra: { Args: { p_aluno_id: string }; Returns: Json };
+      totem_confirmar_sessao_qr: {
+        Args: { p_sessao_id: string; p_token: string };
+        Returns: Json;
+      };
+      totem_criar_sessao_qr: { Args: Record<PropertyKey, never>; Returns: Json };
       totem_devolver: {
         Args: { p_aluguel_id?: string; p_aluno_id: string };
         Returns: Json;

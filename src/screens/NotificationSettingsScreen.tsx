@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { BackButton } from '../components/BackButton';
 import { useScreenContentInsets } from '../hooks/useScreenContentInsets';
+import { getStudentTabBarInset } from '../navigation/StudentTabBar';
 import {
   getNotificationPermissionState,
   type PermissionState,
@@ -38,7 +39,7 @@ function permissionHint(state: PermissionState): string {
 }
 
 export default function NotificationSettingsScreen({ navigation }: Props) {
-  const { contentContainerStyle } = useScreenContentInsets(40);
+  const { contentContainerStyle } = useScreenContentInsets(getStudentTabBarInset());
   const supported = notificationsSupportedOnPlatform();
   const [permission, setPermission] = useState<PermissionState>(
     supported ? 'undetermined' : 'unsupported',

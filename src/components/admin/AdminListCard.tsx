@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { card } from '../../theme/ui';
 
@@ -9,9 +10,17 @@ type Props = {
   badge?: string;
   badgeTone?: 'default' | 'success' | 'warning' | 'danger';
   right?: ReactNode;
+  showChevron?: boolean;
 };
 
-export function AdminListCard({ title, subtitle, badge, badgeTone = 'default', right }: Props) {
+export function AdminListCard({
+  title,
+  subtitle,
+  badge,
+  badgeTone = 'default',
+  right,
+  showChevron = false,
+}: Props) {
   return (
     <View style={styles.card}>
       <View style={styles.body}>
@@ -24,6 +33,9 @@ export function AdminListCard({ title, subtitle, badge, badgeTone = 'default', r
         </View>
       ) : null}
       {right}
+      {showChevron ? (
+        <Ionicons name="chevron-forward" size={16} color={colors.inactive} accessibilityElementsHidden />
+      ) : null}
     </View>
   );
 }

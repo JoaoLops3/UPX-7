@@ -19,6 +19,8 @@ export type ProfileStackParamList = {
 export type AppTabParamList = {
   Home: NavigatorScreenParams<HomeStackParamList>;
   History: undefined;
+  TotemScan: undefined;
+  Notifications: undefined;
   Profile: NavigatorScreenParams<ProfileStackParamList>;
 };
 
@@ -31,6 +33,8 @@ export type RootStackParamList = {
   Fines: undefined;
   NotificationSettings: undefined;
   Help: undefined;
+  TotemScan: undefined;
+  Notifications: undefined;
 };
 
 export type HomeStackScreenProps<T extends keyof HomeStackParamList> = CompositeScreenProps<
@@ -49,16 +53,18 @@ export type AppTabScreenProps<T extends keyof AppTabParamList> = BottomTabScreen
   T
 >;
 
-export type MainTabScreenProps<T extends 'Home' | 'History' | 'Profile'> =
+export type MainTabScreenProps<T extends 'Home' | 'History' | 'TotemScan' | 'Notifications' | 'Profile'> =
   T extends 'Home'
     ? HomeStackScreenProps<'HomeMain'>
     : T extends 'Profile'
       ? ProfileStackScreenProps<'ProfileMain'>
-      : AppTabScreenProps<'History'>;
+      : AppTabScreenProps<T>;
 
 export type RootStackScreenProps<T extends keyof RootStackParamList> =
   T extends 'Confirm' | 'QuadraReserva' | 'Active'
     ? HomeStackScreenProps<T extends 'Confirm' ? 'Confirm' : T extends 'QuadraReserva' ? 'QuadraReserva' : 'Active'>
     : T extends 'Fines' | 'NotificationSettings' | 'Help'
       ? ProfileStackScreenProps<T extends 'Fines' ? 'Fines' : T extends 'Help' ? 'Help' : 'NotificationSettings'>
-      : AppTabScreenProps<'Home'>;
+      : T extends 'TotemScan' | 'Notifications'
+        ? AppTabScreenProps<T>
+        : AppTabScreenProps<'Home'>;
