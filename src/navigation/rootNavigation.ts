@@ -27,7 +27,8 @@ export function navigateRoot<RouteName extends keyof RootStackParamList>(
       navigationRef.navigate('Home', { screen: 'Active' });
       return;
     case 'Devolucao':
-      navigationRef.navigate('Devolucao');
+      // Devolução agora é feita no totem; no app levamos o aluno ao Início.
+      navigateToHomeTab();
       return;
     case 'Fines':
       navigationRef.navigate('Profile', { screen: 'Fines' });
@@ -41,8 +42,8 @@ export function navigateRoot<RouteName extends keyof RootStackParamList>(
 }
 
 export function navigateToReturn() {
-  if (!navigationRef.isReady()) return;
-  navigationRef.navigate('Devolucao');
+  // Devolução migrou para o totem; no app só voltamos ao Início.
+  navigateToHomeTab();
 }
 
 export function navigateToHomeTab() {
@@ -55,12 +56,9 @@ export function navigateToHomeTab() {
   );
 }
 
-export function navigateToScan(item?: ItemTipo) {
-  if (!navigationRef.isReady()) return;
-  navigationRef.navigate('Scan', {
-    screen: 'ScanMain',
-    params: item ? { item } : undefined,
-  });
+export function navigateToScan(_item?: ItemTipo) {
+  // A retirada/aluguel passou a ser feita no totem físico; no app vamos ao Início.
+  navigateToHomeTab();
 }
 
 export function navigateToProfile() {

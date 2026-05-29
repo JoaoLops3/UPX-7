@@ -9,20 +9,13 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { BackButton } from '../components/BackButton';
 import { ChipButton } from '../components/ChipButton';
-import { PrimaryButton } from '../components/PrimaryButton';
+import { NfcTotemStatus } from '../components/NfcTotemStatus';
 import { useAlugueis } from '../hooks/useAlugueis';
 import { useAluno } from '../hooks/useAluno';
-import { useQuadraCheckIn } from '../hooks/useQuadraCheckIn';
+import { useNfcScanTotem } from '../hooks/useNfcScanTotem';
 import { useScreenContentInsets } from '../hooks/useScreenContentInsets';
-import {
-  activateQuadraReserva,
-  findAgendadoForCheckIn,
-  validateCheckInWindow,
-} from '../lib/quadraReserva';
-import { supabase } from '../lib/supabase';
 import { navigateRoot, navigateToHomeTab } from '../navigation/rootNavigation';
 import type { ScanStackScreenProps } from '../navigation/types';
-import { showAlert } from '../utils/alert';
 import { colors } from '../theme/colors';
 import { border } from '../theme/ui';
 import type { ItemTipo } from '../types/database';
@@ -30,11 +23,10 @@ import { ITEM_DISPLAY } from '../utils/itemDisplay';
 
 type Props = ScanStackScreenProps<'ScanMain'>;
 
-// ESP32 lê cartão NFC → grava em logs_nfc no Supabase → app escuta via Realtime → check-in ou confirma aluguel.
+// Arduino TAG-NFC → pc-bridge → logs_nfc → Realtime → este app.
 export default function ScanScreen({ navigation, route }: Props) {
   const initialItem = route.params?.item ?? 'quadra';
   const [selected, setSelected] = useState<ItemTipo>(initialItem);
-  const [quadraId, setQuadraId] = useState<string | null>(null);
   const pulse = useRef(new Animated.Value(1)).current;
   const { aluno } = useAluno();
   const { refetch } = useAlugueis(aluno?.id ?? '');
@@ -45,18 +37,6 @@ export default function ScanScreen({ navigation, route }: Props) {
       setSelected(route.params.item);
     }
   }, [route.params?.item]);
-
-  useEffect(() => {
-    void (async () => {
-      const { data } = await supabase
-        .from('itens')
-        .select('id')
-        .eq('tipo', 'quadra')
-        .limit(1)
-        .maybeSingle();
-      setQuadraId(data?.id ?? null);
-    })();
-  }, []);
 
   useEffect(() => {
     const animation = Animated.loop(
@@ -74,12 +54,11 @@ export default function ScanScreen({ navigation, route }: Props) {
     navigateRoot('Active');
   }, [refetch]);
 
-  useQuadraCheckIn({
+  useNfcScanTotem({
     alunoId: aluno?.id ?? '',
     uidNfc: aluno?.uid_nfc,
-    quadraItemId: quadraId,
-    enabled: selected === 'quadra' && Boolean(aluno?.id && quadraId),
-    onActivated: goActive,
+    enabled: Boolean(aluno?.id && aluno?.uid_nfc),
+    onCheckIn: goActive,
   });
 
   const chips: { key: ItemTipo; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -91,33 +70,6 @@ export default function ScanScreen({ navigation, route }: Props) {
     },
   ];
 
-  const handleSimulate = async () => {
-    if (selected === 'guarda_chuva') {
-      navigateRoot('Confirm', { item: selected, mode: 'now' });
-      return;
-    }
-
-    if (!aluno?.id || !quadraId) return;
-
-    const reserva = await findAgendadoForCheckIn(aluno.id, quadraId);
-    if (reserva?.inicio) {
-      const windowCheck = validateCheckInWindow(reserva.inicio, reserva.fim_previsto);
-      if (!windowCheck.ok) {
-        showAlert('Check-in', windowCheck.message);
-        return;
-      }
-      const result = await activateQuadraReserva(reserva.id, quadraId);
-      if (result.ok) {
-        goActive();
-        return;
-      }
-      showAlert('Check-in', result.message);
-      return;
-    }
-
-    navigateRoot('Confirm', { item: 'quadra', mode: 'now' });
-  };
-
   return (
     <ScrollView
       style={styles.screen}
@@ -125,6 +77,8 @@ export default function ScanScreen({ navigation, route }: Props) {
       keyboardShouldPersistTaps="handled"
     >
       <BackButton onPress={() => navigateToHomeTab()} />
+
+      <NfcTotemStatus uidNfc={aluno?.uid_nfc} />
 
       <View style={styles.center}>
         <Animated.View style={[styles.pulseCircle, { transform: [{ scale: pulse }] }]}>
@@ -138,8 +92,8 @@ export default function ScanScreen({ navigation, route }: Props) {
         <Text style={styles.title}>Aproxime a carteirinha</Text>
         <Text style={styles.subtitle}>
           {selected === 'quadra'
-            ? 'Com reserva: ativa o horário. Sem reserva: inicia aluguel imediato.'
-            : 'Leve o cartão ao totem NFC para iniciar o aluguel'}
+            ? 'Com reserva: check-in automático. Sem reserva: abre confirmação de aluguel.'
+            : 'Aproxime no totem para iniciar o aluguel do guarda-chuva.'}
         </Text>
       </View>
 
@@ -167,12 +121,6 @@ export default function ScanScreen({ navigation, route }: Props) {
           );
         })}
       </View>
-
-      <PrimaryButton
-        label={selected === 'quadra' ? 'Simular leitura NFC' : 'Simular leitura NFC'}
-        onPress={() => void handleSimulate()}
-        style={styles.simulateSpacing}
-      />
     </ScrollView>
   );
 }
@@ -180,7 +128,7 @@ export default function ScanScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.screenBg },
   scrollContent: { flexGrow: 1 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 280 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 240 },
   pulseCircle: {
     width: 120,
     height: 120,
@@ -209,5 +157,4 @@ const styles = StyleSheet.create({
   chipItem: { flexGrow: 1, flexBasis: '47%' },
   chipText: { fontSize: 13, color: colors.inactive, fontWeight: '500' },
   chipTextSelected: { color: colors.primaryDark },
-  simulateSpacing: { marginBottom: 16 },
 });

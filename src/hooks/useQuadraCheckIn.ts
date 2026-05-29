@@ -6,6 +6,7 @@ import {
   findAgendadoForCheckIn,
   validateCheckInWindow,
 } from '../lib/quadraReserva';
+import { nfcUidsMatch } from '../lib/nfcUid';
 import { supabase } from '../lib/supabase';
 
 type Options = {
@@ -36,7 +37,7 @@ export function useQuadraCheckIn({
         (payload) => {
           void (async () => {
             const row = payload.new as { uid_cartao?: string };
-            if (!row.uid_cartao || row.uid_cartao !== uidNfc) return;
+            if (!nfcUidsMatch(row.uid_cartao, uidNfc)) return;
             if (handling.current) return;
             handling.current = true;
 

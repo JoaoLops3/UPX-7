@@ -8,22 +8,18 @@ import type {
   AppTabParamList,
   HomeStackParamList,
   ProfileStackParamList,
-  ScanStackParamList,
 } from './types';
 import HomeScreen from '../screens/HomeScreen';
-import ScanScreen from '../screens/ScanScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import ConfirmScreen from '../screens/ConfirmScreen';
 import QuadraReservaScreen from '../screens/QuadraReservaScreen';
 import ActiveScreen from '../screens/ActiveScreen';
-import DevolucaoScreen from '../screens/DevolucaoScreen';
 import FinesScreen from '../screens/FinesScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
 const HomeStack = createStackNavigator<HomeStackParamList>();
-const ScanStack = createStackNavigator<ScanStackParamList>();
 const ProfileStack = createStackNavigator<ProfileStackParamList>();
 
 const stackScreenOptions = {
@@ -48,14 +44,6 @@ function HomeStackNavigator() {
       <HomeStack.Screen name="QuadraReserva" component={QuadraReservaScreen} />
       <HomeStack.Screen name="Active" component={ActiveScreen} />
     </HomeStack.Navigator>
-  );
-}
-
-function ScanStackNavigator() {
-  return (
-    <ScanStack.Navigator initialRouteName="ScanMain" screenOptions={stackScreenOptions}>
-      <ScanStack.Screen name="ScanMain" component={ScanScreen} />
-    </ScanStack.Navigator>
   );
 }
 
@@ -111,34 +99,6 @@ export function StudentNavigator() {
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'home' : 'home-outline'}
-              size={22}
-              color={color}
-            />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Devolucao"
-        component={DevolucaoScreen}
-        options={{
-          tabBarLabel: 'Devolução',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'return-down-back' : 'return-down-back-outline'}
-              size={22}
-              color={color}
-            />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Scan"
-        component={ScanStackNavigator}
-        options={{
-          tabBarLabel: 'Escanear',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'wifi' : 'wifi-outline'}
               size={22}
               color={color}
             />

@@ -19,6 +19,15 @@ export interface Admin {
   criado_em: string;
 }
 
+export interface Totem {
+  id: string;
+  email: string;
+  nome: string | null;
+  uid_totem: string | null;
+  ativo: boolean;
+  criado_em: string;
+}
+
 /** Linhas do banco — geradas em supabase.generated.ts (regenerar via Supabase MCP). */
 export type Aluno = Tables<'alunos'>;
 export type Item = Tables<'itens'>;

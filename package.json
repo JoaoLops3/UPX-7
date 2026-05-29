@@ -16,7 +16,10 @@
     "ios": "expo run:ios",
     "android": "expo run:android",
     "ios:xcode": "open ios/UPX7.xcworkspace",
-    "android:studio": "open -a 'Android Studio' android"
+    "android:studio": "open -a 'Android Studio' android",
+    "totem:setup": "cd firmware/pc-bridge && npm install && node setup-env.mjs",
+    "totem:ports": "cd firmware/pc-bridge && node bridge.mjs --list-ports",
+    "totem:bridge": "cd firmware/pc-bridge && node bridge.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~4.0.1",

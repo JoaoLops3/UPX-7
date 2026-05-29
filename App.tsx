@@ -14,7 +14,9 @@ import { WebLayout } from './src/components/WebLayout';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { useAdmin } from './src/hooks/useAdmin';
 import { useAluno } from './src/hooks/useAluno';
+import { useTotem } from './src/hooks/useTotem';
 import { AdminNavigation } from './src/navigation/AdminNavigator';
+import TotemKioskScreen from './src/screens/TotemKioskScreen';
 import LoginScreen from './src/screens/auth/LoginScreen';
 import NoAccessScreen from './src/screens/auth/NoAccessScreen';
 import { colors } from './src/theme/colors';
@@ -31,14 +33,24 @@ import { unregisterOrphanServiceWorker } from './src/lib/unregisterOrphanService
 function AuthenticatedApp() {
   const { session, loading: authLoading, signOut } = useAuth();
   const { isAdmin, loading: adminLoading, error: adminError, refetch: refetchAdmin } = useAdmin();
+  const { isTotem, loading: totemLoading } = useTotem();
   const { aluno, loading: alunoLoading, notRegistered, error, refetch } = useAluno();
 
-  if (authLoading || (session && adminLoading) || (session && !isAdmin && alunoLoading)) {
+  if (
+    authLoading ||
+    (session && adminLoading) ||
+    (session && totemLoading) ||
+    (session && !isAdmin && !isTotem && alunoLoading)
+  ) {
     return <LoadingView />;
   }
 
   if (!session) {
     return <LoginScreen />;
+  }
+
+  if (isTotem) {
+    return <TotemKioskScreen />;
   }
 
   if (isAdmin) {

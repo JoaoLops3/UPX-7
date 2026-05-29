@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Animated,
   ScrollView,
@@ -12,11 +11,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { ChipButton } from '../components/ChipButton';
 import { LoadingView } from '../components/LoadingView';
-import { PrimaryButton } from '../components/PrimaryButton';
+import { NfcTotemStatus } from '../components/NfcTotemStatus';
 import { useAlugueis } from '../hooks/useAlugueis';
 import { useAluno } from '../hooks/useAluno';
+import { useNfcDevolucao } from '../hooks/useNfcDevolucao';
 import { useScreenContentInsets } from '../hooks/useScreenContentInsets';
-import { devolverAluguel } from '../lib/devolverAluguel';
+import type { DevolverResult } from '../lib/devolverAluguel';
 import {
   getQuadraAluguelPhase,
   QUADRA_GRACE_MINUTES,
@@ -88,7 +88,6 @@ export default function DevolucaoScreen(_props: Props) {
   const { aluguelAtivo, loading, refetch } = useAlugueis(aluno?.id ?? '');
   const { contentContainerStyle } = useScreenContentInsets(32);
   const [selected, setSelected] = useState<ItemTipo>('guarda_chuva');
-  const [submitting, setSubmitting] = useState(false);
   const pulse = useRef(new Animated.Value(1)).current;
 
   const quadraPhase = getQuadraAluguelPhase(aluguelAtivo);
@@ -130,41 +129,32 @@ export default function DevolucaoScreen(_props: Props) {
     return () => animation.stop();
   }, [pulse]);
 
-  const handleSimularNfc = async () => {
-    if (!aluguelAtivo || !aluno || submitting) return;
+  const handleNfcDevolvido = useCallback(
+    async (result: DevolverResult) => {
+      await refetch();
+      if (!result.ok) return;
 
-    const tipoAtivo = aluguelAtivo.itens.tipo as ItemTipo;
-    if (!TIPOS_VALIDOS.includes(tipoAtivo)) return;
-    if (selected !== tipoAtivo) {
-      Alert.alert(
-        'Item incorreto',
-        `Seu aluguel ativo é ${aluguelAtivo.itens.nome}. Selecione o item correto para devolver.`,
-      );
-      return;
-    }
+      const itemNome = aluguelAtivo?.itens.nome ?? 'Item';
+      if (result.multaGerada) {
+        const valor = result.valorMulta.toFixed(2).replace('.', ',');
+        Alert.alert(
+          'Devolvido com atraso',
+          `${itemNome} devolvido. Multa de R$ ${valor} (${result.diasAtraso} dia(s)) registrada no seu RA.`,
+        );
+      } else {
+        Alert.alert('Devolução concluída', `${itemNome} devolvido com sucesso.`);
+      }
+    },
+    [refetch, aluguelAtivo?.itens.nome],
+  );
 
-    setSubmitting(true);
-    const result = await devolverAluguel(aluguelAtivo, aluno.id);
-    setSubmitting(false);
-
-    if (!result.ok) {
-      Alert.alert('Erro na devolução', result.message);
-      return;
-    }
-
-    await refetch();
-
-    const itemNome = aluguelAtivo.itens.nome;
-    if (result.multaGerada) {
-      const valor = result.valorMulta.toFixed(2).replace('.', ',');
-      Alert.alert(
-        'Devolvido com atraso',
-        `${itemNome} devolvido. Multa de R$ ${valor} (${result.diasAtraso} dia(s)) registrada no seu RA.`,
-      );
-    } else {
-      Alert.alert('Devolução concluída', `${itemNome} devolvido com sucesso.`);
-    }
-  };
+  useNfcDevolucao({
+    alunoId: aluno?.id ?? '',
+    uidNfc: aluno?.uid_nfc,
+    aluguelAtivo,
+    enabled: Boolean(aluno?.id && aluno?.uid_nfc && aluguelAtivo),
+    onDevolvido: handleNfcDevolvido,
+  });
 
   if (alunoLoading || loading) return <LoadingView />;
 
@@ -248,6 +238,7 @@ export default function DevolucaoScreen(_props: Props) {
       {aluguelAtivo ? (
         <>
           <Text style={styles.sectionTitle}>Concluir devolução</Text>
+          <NfcTotemStatus uidNfc={aluno?.uid_nfc} />
           <View style={styles.nfcCard}>
             <View style={styles.center}>
               <Animated.View style={[styles.pulseCircle, { transform: [{ scale: pulse }] }]}>
@@ -312,17 +303,6 @@ export default function DevolucaoScreen(_props: Props) {
               })}
             </View>
 
-            {submitting ? (
-              <View style={styles.loadingBtn}>
-                <ActivityIndicator color={colors.white} />
-              </View>
-            ) : (
-              <PrimaryButton
-                label="Simular leitura NFC"
-                onPress={() => void handleSimularNfc()}
-                accessibilityLabel="Simular leitura NFC para devolver"
-              />
-            )}
           </View>
         </>
       ) : (

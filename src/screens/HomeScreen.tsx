@@ -20,7 +20,7 @@ import { useScreenContentInsets } from '../hooks/useScreenContentInsets';
 import { useWeather } from '../hooks/useWeather';
 import { supabase } from '../lib/supabase';
 import { getSupabaseErrorMessage } from '../utils/supabaseError';
-import { navigateRoot, navigateToProfile, navigateToScan } from '../navigation/rootNavigation';
+import { navigateRoot, navigateToProfile } from '../navigation/rootNavigation';
 import type { HomeStackScreenProps } from '../navigation/types';
 import { showAlert, showConfirm } from '../utils/alert';
 import { colors } from '../theme/colors';
@@ -234,7 +234,12 @@ export default function HomeScreen({ navigation }: Props) {
   const guardaDisponiveis = guardaChuvas.filter((i) => i.disponivel).length;
 
   const navigateScan = (item: ItemTipo) => {
-    navigateToScan(item);
+    showAlert(
+      item === 'quadra' ? 'Check-in da quadra' : 'Pegar guarda-chuva',
+      item === 'quadra'
+        ? 'No horário da sua reserva, aproxime a carteirinha no totem da quadra para fazer o check-in.'
+        : 'Vá até o totem e aproxime sua carteirinha para retirar um guarda-chuva.',
+    );
   };
 
   const handleReservaPress = () => {

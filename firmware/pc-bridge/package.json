@@ -1,0 +1,14 @@
+{
+  "name": "upx7-nfc-pc-bridge",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node bridge.mjs",
+    "ports": "node bridge.mjs --list-ports",
+    "setup-env": "node setup-env.mjs"
+  },
+  "dependencies": {
+    "@serialport/parser-readline": "^13.0.0",
+    "serialport": "^13.0.0"
+  }
+}
