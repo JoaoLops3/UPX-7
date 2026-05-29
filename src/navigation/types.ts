@@ -6,7 +6,7 @@ import type { ItemTipo } from '../types/database';
 export type HomeStackParamList = {
   HomeMain: undefined;
   Confirm: { item: ItemTipo; mode?: 'now' | 'schedule'; scheduledStart?: string };
-  QuadraReserva: undefined;
+  QuadraReserva: { mode?: 'today' } | undefined;
   Active: undefined;
 };
 
@@ -33,7 +33,7 @@ export type AppTabParamList = {
 export type RootStackParamList = {
   MainTabs: undefined;
   Confirm: HomeStackParamList['Confirm'];
-  QuadraReserva: undefined;
+  QuadraReserva: HomeStackParamList['QuadraReserva'];
   Active: undefined;
   Devolucao: undefined;
   Fines: undefined;

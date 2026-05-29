@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BackButton } from '../components/BackButton';
-import { DevolverNfcButton } from '../components/DevolverNfcButton';
 import { LoadingView } from '../components/LoadingView';
 import { useAlugueis } from '../hooks/useAlugueis';
 import { useAluno } from '../hooks/useAluno';
@@ -77,7 +76,7 @@ export default function ActiveScreen({ navigation }: Props) {
           accessibilityElementsHidden
         />
         <Text style={styles.emptyTitle}>Nenhum aluguel ativo</Text>
-        <Text style={styles.emptyText}>Escaneie um item na aba Escanear para começar.</Text>
+        <Text style={styles.emptyText}>Retire itens no totem com sua carteirinha NFC.</Text>
         <BackButton onPress={() => navigation.goBack()} style={styles.emptyBack} />
       </View>
     );
@@ -171,7 +170,14 @@ export default function ActiveScreen({ navigation }: Props) {
         </View>
       </View>
 
-      <DevolverNfcButton urgent={urgent} />
+      <View style={styles.totemHint}>
+        <Ionicons name="hardware-chip-outline" size={18} color={colors.primaryDark} />
+        <Text style={styles.totemHintText}>
+          {urgent
+            ? `Confirme a devolução no totem NFC (até ${QUADRA_GRACE_MINUTES} min após o horário).`
+            : 'Para devolver, vá ao totem e use a aba Devolver com sua carteirinha.'}
+        </Text>
+      </View>
 
       <View style={styles.detailsCard}>
         <Text style={styles.detailsTitle}>Detalhes</Text>
@@ -323,6 +329,23 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   progressFill: { height: '100%', backgroundColor: colors.progressFill, borderRadius: 3 },
+  totemHint: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: colors.background,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+    ...border,
+  },
+  totemHintText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.primaryDark,
+    lineHeight: 18,
+    fontWeight: '500',
+  },
   detailsCard: {
     ...card,
     backgroundColor: colors.white,

@@ -54,12 +54,14 @@ function LegendDot({ color, label }: { color: string; label: string }) {
   );
 }
 
-export default function QuadraReservaScreen({ navigation }: Props) {
+export default function QuadraReservaScreen({ navigation, route }: Props) {
+  const todayMode = route.params?.mode === 'today';
   const { aluno, loading: alunoLoading } = useAluno();
   const { alugueis, loading: alugueisLoading } = useAlugueis(aluno?.id ?? '');
   const today = useMemo(() => startOfCalendarDay(new Date()), []);
   const dates = useMemo(() => listReservaDates(), []);
   const [selectedDay, setSelectedDay] = useState(() => {
+    if (todayMode) return startOfCalendarDay(new Date());
     const tomorrow = startOfCalendarDay(new Date());
     tomorrow.setDate(tomorrow.getDate() + 1);
     return tomorrow;
@@ -156,9 +158,11 @@ export default function QuadraReservaScreen({ navigation }: Props) {
             <Ionicons name="calendar-outline" size={26} color={colors.primaryDark} />
           </View>
           <View style={styles.heroText}>
-            <Text style={styles.title}>Reservar quadra</Text>
+            <Text style={styles.title}>{todayMode ? 'Alugar quadra hoje' : 'Reservar quadra'}</Text>
             <Text style={styles.sub}>
-              Escolha data e horário de início. No dia, faça check-in no totem NFC.
+              {todayMode
+                ? `Escolha um horário disponível para hoje (${formatDayMonth(today)}). No horário, faça check-in no totem NFC.`
+                : 'Escolha data e horário de início. No dia, faça check-in no totem NFC.'}
             </Text>
           </View>
         </View>
@@ -170,6 +174,7 @@ export default function QuadraReservaScreen({ navigation }: Props) {
           </Text>
         </View>
 
+        {todayMode ? null : (
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
             <View style={styles.stepBadge}>
@@ -225,11 +230,12 @@ export default function QuadraReservaScreen({ navigation }: Props) {
             })}
           </ScrollView>
         </View>
+        )}
 
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
             <View style={styles.stepBadge}>
-              <Text style={styles.stepBadgeText}>2</Text>
+              <Text style={styles.stepBadgeText}>{todayMode ? '1' : '2'}</Text>
             </View>
             <View style={styles.sectionHeaderText}>
               <Text style={styles.sectionTitle}>Horário de início</Text>
@@ -241,7 +247,7 @@ export default function QuadraReservaScreen({ navigation }: Props) {
             </View>
           </View>
 
-          {isToday ? (
+          {isToday && !todayMode ? (
             <View style={styles.todayHint}>
               <Ionicons name="information-circle-outline" size={16} color={colors.primaryDark} />
               <Text style={styles.todayHintText}>

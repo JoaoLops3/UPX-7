@@ -21,7 +21,10 @@ export function navigateRoot<RouteName extends keyof RootStackParamList>(
       });
       return;
     case 'QuadraReserva':
-      navigationRef.navigate('Home', { screen: 'QuadraReserva' });
+      navigationRef.navigate('Home', {
+        screen: 'QuadraReserva',
+        params: params as HomeStackParamList['QuadraReserva'],
+      });
       return;
     case 'Active':
       navigationRef.navigate('Home', { screen: 'Active' });

@@ -95,7 +95,7 @@ export function WeatherCard({
           />
           <Text style={[styles.tipText, !canRentUmbrella && styles.tipTextMuted]}>
             {canRentUmbrella
-              ? `Boa hora para guarda-chuva — ${guardaDisponiveis} disponíveis`
+              ? `Chuva no campus — ${guardaDisponiveis} no totem. Toque para ver onde retirar.`
               : 'Chuva no campus — guarda-chuvas em uso no momento'}
           </Text>
           {canRentUmbrella ? (

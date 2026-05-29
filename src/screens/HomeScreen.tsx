@@ -10,7 +10,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { LoadingView } from '../components/LoadingView';
-import { DevolverNfcButton } from '../components/DevolverNfcButton';
 import { WeatherCard } from '../components/WeatherCard';
 import { PressableCard } from '../components/PressableCard';
 import { SupabaseErrorBanner } from '../components/SupabaseErrorBanner';
@@ -294,20 +293,24 @@ export default function HomeScreen({ navigation }: Props) {
         error={weatherError}
         guardaDisponiveis={guardaDisponiveis}
         onRetry={() => void refreshWeather(true)}
-        onUmbrellaPress={() => navigateScan('guarda_chuva')}
+        onUmbrellaPress={() =>
+          showAlert(
+            'Guarda-chuva',
+            'Vá até o totem e aproxime sua carteirinha para retirar um guarda-chuva.',
+          )
+        }
       />
 
       {aluguelAtivo ? (
-        <>
-          <Pressable
-            style={({ pressed }) => [
-              styles.activeBanner,
-              quadraPhase === 'aguardando_nfc' && styles.activeBannerUrgent,
-              pressed && styles.pressedDark,
-            ]}
-            onPress={() => navigateRoot('Active')}
-            accessibilityLabel="Ver detalhes do aluguel ativo"
-          >
+        <Pressable
+          style={({ pressed }) => [
+            styles.activeBanner,
+            quadraPhase === 'aguardando_nfc' && styles.activeBannerUrgent,
+            pressed && styles.pressedDark,
+          ]}
+          onPress={() => navigateRoot('Active')}
+          accessibilityLabel="Ver detalhes do aluguel ativo"
+        >
             <Text style={styles.activeTitle}>{aluguelAtivo.itens.nome}</Text>
             <Text
               style={[
@@ -327,9 +330,7 @@ export default function HomeScreen({ navigation }: Props) {
                   : `Devolver até ${formatDate(aluguelAtivo.fim_previsto)}`}
             </Text>
             <Text style={styles.activeLink}>Ver detalhes →</Text>
-          </Pressable>
-          <DevolverNfcButton urgent={quadraPhase === 'aguardando_nfc'} />
-        </>
+        </Pressable>
       ) : reservaQuadra ? (
         <View style={styles.reservaBanner}>
           <Pressable
@@ -416,9 +417,9 @@ export default function HomeScreen({ navigation }: Props) {
               !quadraPodeAlugar && styles.quadraActionDisabled,
               pressed && quadraPodeAlugar && styles.quadraActionPressed,
             ]}
-            onPress={() => quadraPodeAlugar && navigateScan('quadra')}
+            onPress={() => quadraPodeAlugar && navigateRoot('QuadraReserva', { mode: 'today' })}
             disabled={!quadraPodeAlugar}
-            accessibilityLabel="Alugar quadra agora"
+            accessibilityLabel="Alugar quadra hoje"
           >
             <Text
               style={[
@@ -443,18 +444,16 @@ export default function HomeScreen({ navigation }: Props) {
         </View>
       </View>
 
-      <PressableCard
-        onPress={() => navigateScan('guarda_chuva')}
-        accessibilityLabel="Alugar guarda-chuva"
-        style={styles.cardSpacing}
-      >
+      <PressableCard style={styles.cardSpacing}>
         <View style={styles.cardRow}>
           <View style={styles.iconWrap}>
             <Ionicons name={ITEM_DISPLAY.guarda_chuva.icon} size={22} color={colors.primaryDark} />
           </View>
           <View style={styles.cardBody}>
             <Text style={styles.cardTitle}>{ITEM_DISPLAY.guarda_chuva.label}</Text>
-            <Text style={styles.cardSub}>{guardaDisponiveis} disponíveis</Text>
+            <Text style={styles.cardSub}>
+              {guardaDisponiveis} disponíveis · retire no totem NFC
+            </Text>
           </View>
           <View
             style={[styles.badge, guardaDisponiveis > 0 ? styles.badgeFree : styles.badgeBusy]}

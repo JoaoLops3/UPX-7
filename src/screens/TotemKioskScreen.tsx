@@ -128,6 +128,16 @@ export default function TotemKioskScreen() {
         )}
       </View>
 
+      <Pressable
+        onPress={handleLogout}
+        style={({ pressed }) => [styles.logoutBtn, pressed && { borderColor: colors.primary, backgroundColor: colors.background }]}
+        accessibilityRole="button"
+        accessibilityLabel="Sair do totem"
+      >
+        <Ionicons name="log-out-outline" size={18} color={colors.textMuted} accessibilityElementsHidden />
+        <Text style={styles.logoutText}>Sair do totem</Text>
+      </Pressable>
+
       <Text style={styles.footer}>Faça reservas e veja seus prazos no app UPX 7.</Text>
     </View>
   );
@@ -179,5 +189,18 @@ const styles = StyleSheet.create({
   },
   feedbackTitle: { fontSize: 26, fontWeight: '800', textAlign: 'center' },
   feedbackSubtitle: { fontSize: 17, color: colors.textMuted, textAlign: 'center', marginTop: 8, lineHeight: 23 },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    backgroundColor: colors.white,
+    marginBottom: 12,
+    ...border,
+  },
+  logoutText: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
   footer: { fontSize: 13, color: colors.textMuted, textAlign: 'center' },
 });
