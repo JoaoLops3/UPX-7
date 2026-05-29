@@ -12,6 +12,7 @@ import AdminAlugueisScreen from '../screens/admin/AdminAlugueisScreen';
 import AdminItensScreen from '../screens/admin/AdminItensScreen';
 import AdminAlunosScreen from '../screens/admin/AdminAlunosScreen';
 import AdminMultasScreen from '../screens/admin/AdminMultasScreen';
+import AdminLogsNfcScreen from '../screens/admin/AdminLogsNfcScreen';
 
 const Tab = createBottomTabNavigator<AdminTabParamList>();
 const Stack = createStackNavigator<AdminStackParamList>();
@@ -99,6 +100,7 @@ export function AdminNavigation() {
       <StatusBar style="dark" />
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="AdminTabs" component={AdminTabs} />
+        <Stack.Screen name="AdminLogsNfc" component={AdminLogsNfcScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

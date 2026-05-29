@@ -9,7 +9,6 @@ import {
 import type { AluguelComItem } from '../types/database';
 import {
   isAluguelPendenteParaAluno,
-  syncAllQuadraAlugueisTiming,
 } from '../lib/quadraAluguelTiming';
 import { getSupabaseErrorMessage } from '../utils/supabaseError';
 
@@ -46,7 +45,6 @@ export function useAlugueis(alunoId: string) {
       let needsRefetch = false;
       if (await dedupeAgendadoReservasQuadra(alunoId)) needsRefetch = true;
       if (await syncAgendadoNoShows(rows)) needsRefetch = true;
-      if (await syncAllQuadraAlugueisTiming(rows)) needsRefetch = true;
       if (needsRefetch) {
         setLoading(false);
         return fetchAlugueis(true);

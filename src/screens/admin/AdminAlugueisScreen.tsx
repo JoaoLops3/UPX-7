@@ -87,7 +87,7 @@ export default function AdminAlugueisScreen(_props: Props) {
             >
               <AdminListCard
                 title={`${display.label} · ${aluno?.nome ?? '—'}`}
-                subtitle={`RA ${aluno?.ra ?? '—'} · ${item.inicio ? formatDateTime(item.inicio) : '—'} → ${formatTime(item.fim_previsto)}`}
+                subtitle={`RA ${aluno?.ra ?? '—'} · ${item.inicio ? formatDateTime(item.inicio) : '—'} → ${formatTime(item.fim_previsto)}${item.via_totem ? ' · Totem' : ''}`}
                 badge={badgeLabel}
                 badgeTone={
                   item.status === 'ativo'

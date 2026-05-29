@@ -12,9 +12,13 @@ export type AdminTabParamList = {
 
 export type AdminStackParamList = {
   AdminTabs: undefined;
+  AdminLogsNfc: undefined;
 };
 
 export type AdminTabScreenProps<T extends keyof AdminTabParamList> = CompositeScreenProps<
   BottomTabScreenProps<AdminTabParamList, T>,
   StackScreenProps<AdminStackParamList>
 >;
+
+export type AdminStackScreenProps<T extends keyof AdminStackParamList> =
+  StackScreenProps<AdminStackParamList, T>;

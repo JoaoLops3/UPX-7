@@ -90,8 +90,19 @@ export default function ProfileScreen({ navigation }: Props) {
         <MenuItem
           icon="card-outline"
           label="Minha carteirinha NFC"
-          subtitle="em breve"
-          onPress={() => Alert.alert('Em breve', 'Carteirinha NFC disponível em breve.')}
+          subtitle={
+            aluno?.uid_nfc
+              ? `Vinculada · termina em ${aluno.uid_nfc.replace(/\s+/g, '').slice(-4)}`
+              : 'Não cadastrada — procure a administração'
+          }
+          onPress={() =>
+            Alert.alert(
+              aluno?.uid_nfc ? 'Carteirinha vinculada' : 'Carteirinha não cadastrada',
+              aluno?.uid_nfc
+                ? 'Sua carteirinha está ativa. Use o totem NFC para alugar, check-in e devolução.'
+                : 'Peça à administração para vincular o UID da sua carteirinha ao seu cadastro.',
+            )
+          }
         />
         {notificationsSupportedOnPlatform() ? (
           <MenuItem
@@ -104,7 +115,7 @@ export default function ProfileScreen({ navigation }: Props) {
         <MenuItem
           icon="help-circle-outline"
           label="Ajuda e suporte"
-          onPress={() => Alert.alert('Ajuda', 'Entre em contato com a Facens.')}
+              onPress={() => navigation.navigate('Help')}
           last
         />
       </View>

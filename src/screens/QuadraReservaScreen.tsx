@@ -133,8 +133,6 @@ export default function QuadraReservaScreen({ navigation, route }: Props) {
       return;
     }
     navigateRoot('Confirm', {
-      item: 'quadra',
-      mode: 'schedule',
       scheduledStart: selectedSlot.slotStart.toISOString(),
     });
   };

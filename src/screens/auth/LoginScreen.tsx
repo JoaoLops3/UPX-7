@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
+import { requestPasswordReset } from '../../lib/auth';
 import { colors } from '../../theme/colors';
 import { border, textInputWeb } from '../../theme/ui';
 
@@ -35,18 +36,17 @@ export default function LoginScreen() {
   };
 
   const handleForgotPassword = () => {
-    const email = identifier.trim();
-    if (!email.includes('@')) {
+    void (async () => {
+      const err = await requestPasswordReset(identifier);
+      if (err) {
+        Alert.alert('Recuperar senha', err);
+        return;
+      }
       Alert.alert(
-        'Recuperar senha',
-        'Informe seu e-mail institucional no campo acima e toque novamente em "Esqueceu a senha?".',
+        'E-mail enviado',
+        'Se o cadastro existir, você receberá um link para redefinir a senha no e-mail institucional.',
       );
-      return;
-    }
-    Alert.alert(
-      'Em breve',
-      'O envio de link para redefinir senha será habilitado em breve. Procure a secretaria se precisar de acesso.',
-    );
+    })();
   };
 
   return (

@@ -45,3 +45,16 @@ export async function resolveLoginEmail(
   if (error || !data?.email) return null;
   return data.email.trim().toLowerCase();
 }
+
+export async function requestPasswordReset(identifier: string): Promise<string | null> {
+  const trimmed = identifier.trim();
+  if (!trimmed) return 'Informe seu RA ou e-mail institucional.';
+
+  const mode = detectLoginMode(trimmed);
+  const email = await resolveLoginEmail(trimmed, mode);
+  if (!email) return 'RA/e-mail não encontrado no cadastro de alunos.';
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  if (error) return error.message;
+  return null;
+}

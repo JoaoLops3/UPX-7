@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { LoadingView } from '../../components/LoadingView';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAdmin } from '../../hooks/useAdmin';
@@ -87,6 +88,16 @@ export default function AdminDashboardScreen({ navigation }: Props) {
       <Text style={styles.hint}>
         Use as abas abaixo para gerenciar aluguéis, itens, alunos e multas do campus.
       </Text>
+
+      <Pressable
+        style={({ pressed }) => [styles.logsLink, pressed && { opacity: 0.85 }]}
+        onPress={() => navigation.navigate('AdminLogsNfc')}
+        accessibilityLabel="Ver logs NFC"
+      >
+        <Ionicons name="radio-outline" size={18} color={colors.primaryDark} />
+        <Text style={styles.logsLinkText}>Logs NFC (cartões não reconhecidos)</Text>
+        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+      </Pressable>
     </ScrollView>
   );
 }
@@ -144,4 +155,15 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 28, fontWeight: '700', color: colors.primaryDark },
   statLabel: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
   hint: { fontSize: 13, color: colors.textMuted, marginTop: 20, lineHeight: 20 },
+  logsLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: colors.white,
+    ...card,
+  },
+  logsLinkText: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.primaryVeryDark },
 });

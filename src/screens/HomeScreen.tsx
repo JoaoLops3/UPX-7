@@ -24,7 +24,7 @@ import type { HomeStackScreenProps } from '../navigation/types';
 import { showAlert, showConfirm } from '../utils/alert';
 import { colors } from '../theme/colors';
 import { card } from '../theme/ui';
-import type { Item, ItemTipo } from '../types/database';
+import type { Item } from '../types/database';
 import {
   daysBetween,
   formatCountdown,
@@ -35,7 +35,9 @@ import { getInitials } from '../utils/initials';
 import { ITEM_DISPLAY } from '../utils/itemDisplay';
 import {
   cancelarReservaAgendada,
+  getReservaCheckInWindow,
   isReservaHoje,
+  validateCheckInWindow,
 } from '../lib/quadraReserva';
 import {
   getQuadraAluguelPhase,
@@ -229,16 +231,34 @@ export default function HomeScreen({ navigation }: Props) {
     return null;
   }, [aluguelAtivo, quadraPhase, quadraOcupadaAgora, quadraIndisponivel, quadraBookings, agendaNow]);
 
+  const reservaCheckInHint = useMemo(() => {
+    if (!reservaQuadra?.inicio || !isReservaHoje(reservaQuadra, agendaNow)) return null;
+    const check = validateCheckInWindow(
+      reservaQuadra.inicio,
+      reservaQuadra.fim_previsto,
+      agendaNow,
+    );
+    if (check.ok) return 'Check-in aberto — vá ao totem com sua carteirinha';
+    if (!check.ok && check.code === 'too_early') {
+      const { openAt } = getReservaCheckInWindow(
+        reservaQuadra.inicio,
+        reservaQuadra.fim_previsto,
+      );
+      return `Check-in abre às ${formatTime(openAt.toISOString())}`;
+    }
+    return null;
+  }, [reservaQuadra, agendaNow]);
+
   const loading = alunoLoading || alugueisLoading || itensLoading;
   if (loading) return <LoadingView />;
 
   const guardaChuvas = itens.filter((i) => i.tipo === 'guarda_chuva');
   const guardaDisponiveis = guardaChuvas.filter((i) => i.disponivel).length;
 
-  const navigateScan = (item: ItemTipo) => {
+  const showTotemHint = (topic: 'quadra' | 'guarda_chuva') => {
     showAlert(
-      item === 'quadra' ? 'Check-in da quadra' : 'Pegar guarda-chuva',
-      item === 'quadra'
+      topic === 'quadra' ? 'Check-in da quadra' : 'Pegar guarda-chuva',
+      topic === 'quadra'
         ? 'No horário da sua reserva, aproxime a carteirinha no totem da quadra para fazer o check-in.'
         : 'Vá até o totem e aproxime sua carteirinha para retirar um guarda-chuva.',
     );
@@ -247,7 +267,7 @@ export default function HomeScreen({ navigation }: Props) {
   const handleReservaPress = () => {
     if (!reservaQuadra?.inicio) return;
     if (isReservaHoje(reservaQuadra)) {
-      navigateScan('quadra');
+      showTotemHint('quadra');
       return;
     }
     const detalhe = `${formatDate(reservaQuadra.inicio)} · ${formatTime(reservaQuadra.inicio)} – ${formatTime(reservaQuadra.fim_previsto)}`;
@@ -347,9 +367,10 @@ export default function HomeScreen({ navigation }: Props) {
               {formatTime(reservaQuadra.fim_previsto)}
             </Text>
             <Text style={styles.reservaHint}>
-              {isReservaHoje(reservaQuadra)
-                ? 'Faça check-in no totem NFC no horário'
-                : 'Toque para ver detalhes'}
+              {reservaCheckInHint ??
+                (isReservaHoje(reservaQuadra)
+                  ? 'Faça check-in no totem NFC no horário'
+                  : 'Toque para ver detalhes')}
             </Text>
           </Pressable>
           <Pressable

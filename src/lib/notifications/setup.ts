@@ -1,4 +1,4 @@
-import { navigateRoot, navigateToHomeTab } from '../../navigation/rootNavigation';
+import { navigateRoot, navigateToActive, navigateToHomeTab } from '../../navigation/rootNavigation';
 import type { NotificationKind } from './constants';
 import { notificationsSupportedOnPlatform } from './preferences';
 
@@ -36,9 +36,11 @@ function handleNotificationNavigation(data: Record<string, unknown> | undefined)
   switch (kind) {
     case 'rain':
     case 'reserva':
+      navigateToHomeTab();
+      break;
     case 'devolucao_quadra':
     case 'devolucao_guarda':
-      navigateToHomeTab();
+      navigateToActive();
       break;
     case 'multa':
       navigateRoot('Fines');

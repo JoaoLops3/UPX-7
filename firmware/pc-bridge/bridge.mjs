@@ -31,6 +31,7 @@ const listOnly = args.includes('--list-ports');
 const portArg = args.find((a, i) => args[i - 1] === '--port') ?? process.env.SERIAL_PORT;
 const baudRate = Number(process.env.SERIAL_BAUD ?? 9600);
 const RECONNECT_MS = Number(process.env.RECONNECT_MS ?? 3000);
+const HEARTBEAT_MS = Number(process.env.HEARTBEAT_MS ?? 60_000);
 
 const SUPABASE_URL = process.env.SUPABASE_URL?.replace(/\/$/, '');
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
@@ -128,6 +129,7 @@ function attachParser(port, state) {
       const acao = await postLog(uid);
       state.ultimoUidEnviado = uid;
       state.ultimoEnvioMs = agora;
+      state.lastTagMs = agora;
       if (acao === 'aluno_desconhecido') {
         console.warn(`[Site] Cartão NÃO cadastrado — uid=${uid} (cadastre em alunos.uid_nfc)`);
       } else if (acao === 'identificacao') {
@@ -158,15 +160,31 @@ async function openPort(path) {
 }
 
 async function runSession(path) {
-  const state = { ultimoUidEnviado: '', ultimoEnvioMs: 0 };
+  const state = {
+    ultimoUidEnviado: '',
+    ultimoEnvioMs: 0,
+    sessionStartMs: Date.now(),
+    lastTagMs: null,
+  };
   const port = await openPort(path);
   attachParser(port, state);
   console.log('[Serial] Conectado. Aguardando tags...\n');
+
+  const heartbeat = setInterval(() => {
+    const uptimeMin = Math.floor((Date.now() - state.sessionStartMs) / 60_000);
+    const lastTag =
+      state.lastTagMs != null
+        ? `${Math.floor((Date.now() - state.lastTagMs) / 1000)}s atrás`
+        : 'nenhuma ainda';
+    console.log(`[Bridge] OK — serial ativo · uptime ${uptimeMin} min · última tag: ${lastTag}`);
+  }, HEARTBEAT_MS);
 
   await new Promise((resolve) => {
     port.on('close', resolve);
     port.on('error', () => resolve());
   });
+
+  clearInterval(heartbeat);
 }
 
 async function main() {

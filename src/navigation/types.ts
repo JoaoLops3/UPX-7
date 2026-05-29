@@ -1,11 +1,9 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps, NavigatorScreenParams } from '@react-navigation/native';
 import type { StackScreenProps } from '@react-navigation/stack';
-import type { ItemTipo } from '../types/database';
-
 export type HomeStackParamList = {
   HomeMain: undefined;
-  Confirm: { item: ItemTipo; mode?: 'now' | 'schedule'; scheduledStart?: string };
+  Confirm: { scheduledStart: string };
   QuadraReserva: { mode?: 'today' } | undefined;
   Active: undefined;
 };
@@ -14,6 +12,7 @@ export type ProfileStackParamList = {
   ProfileMain: undefined;
   Fines: undefined;
   NotificationSettings: undefined;
+  Help: undefined;
 };
 
 /** Navegação principal do aluno — tab bar sempre visível. */
@@ -29,10 +28,9 @@ export type RootStackParamList = {
   Confirm: HomeStackParamList['Confirm'];
   QuadraReserva: HomeStackParamList['QuadraReserva'];
   Active: undefined;
-  /** @deprecated Devolução é no totem; redireciona para Início. */
-  Devolucao: undefined;
   Fines: undefined;
   NotificationSettings: undefined;
+  Help: undefined;
 };
 
 export type HomeStackScreenProps<T extends keyof HomeStackParamList> = CompositeScreenProps<
@@ -61,6 +59,6 @@ export type MainTabScreenProps<T extends 'Home' | 'History' | 'Profile'> =
 export type RootStackScreenProps<T extends keyof RootStackParamList> =
   T extends 'Confirm' | 'QuadraReserva' | 'Active'
     ? HomeStackScreenProps<T extends 'Confirm' ? 'Confirm' : T extends 'QuadraReserva' ? 'QuadraReserva' : 'Active'>
-    : T extends 'Fines'
-      ? ProfileStackScreenProps<'Fines'>
+    : T extends 'Fines' | 'NotificationSettings' | 'Help'
+      ? ProfileStackScreenProps<T extends 'Fines' ? 'Fines' : T extends 'Help' ? 'Help' : 'NotificationSettings'>
       : AppTabScreenProps<'Home'>;

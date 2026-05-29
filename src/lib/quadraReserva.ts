@@ -46,60 +46,6 @@ export function validateCheckInWindow(
   return { ok: true };
 }
 
-export async function findAgendadoForCheckIn(
-  alunoId: string,
-  quadraItemId: string,
-  now: Date = new Date(),
-): Promise<AluguelComItem | null> {
-  const dayStart = new Date(now);
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(dayStart);
-  dayEnd.setDate(dayEnd.getDate() + 1);
-
-  const { data } = await supabase
-    .from('alugueis')
-    .select('*, itens(*)')
-    .eq('aluno_id', alunoId)
-    .eq('item_id', quadraItemId)
-    .eq('status', 'agendado')
-    .gte('inicio', dayStart.toISOString())
-    .lt('inicio', dayEnd.toISOString())
-    .order('inicio', { ascending: true });
-
-  const rows = (data as AluguelComItem[]) ?? [];
-  for (const row of rows) {
-    const check = validateCheckInWindow(row.inicio ?? '', row.fim_previsto, now);
-    if (check.ok) return row;
-  }
-  return rows[0] ?? null;
-}
-
-export async function activateQuadraReserva(
-  aluguelId: string,
-  itemId: string,
-): Promise<CheckInResult> {
-  const { error: aluguelError } = await supabase
-    .from('alugueis')
-    .update({ status: 'ativo' })
-    .eq('id', aluguelId)
-    .eq('status', 'agendado');
-
-  if (aluguelError) {
-    return { ok: false, code: 'error', message: aluguelError.message };
-  }
-
-  const { error: itemError } = await supabase
-    .from('itens')
-    .update({ disponivel: false })
-    .eq('id', itemId);
-
-  if (itemError) {
-    return { ok: false, code: 'error', message: itemError.message };
-  }
-
-  return { ok: true, aluguelId };
-}
-
 /** Cancela todas as reservas agendadas futuras do aluno na quadra (inclui duplicatas legadas). */
 export async function cancelarReservaAgendada(reserva: {
   id: string;

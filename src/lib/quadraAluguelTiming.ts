@@ -1,4 +1,3 @@
-import { supabase } from './supabase';
 import type { AluguelComItem } from '../types/database';
 
 /** Tempo após o fim previsto para confirmar devolução no totem NFC. */
@@ -22,6 +21,7 @@ export function isAluguelPendenteParaAluno(aluguel: AluguelComItem): boolean {
   return false;
 }
 
+/** Fase exibida na UI — status vem do servidor (cron pg_cron + totem). */
 export function getQuadraAluguelPhase(aluguel: AluguelComItem | null): QuadraAluguelPhase | null {
   if (!aluguel || !isQuadraAluguelRow(aluguel)) return null;
   if (aluguel.status === 'aguardando_nfc') return 'aguardando_nfc';
@@ -32,64 +32,4 @@ export function getQuadraAluguelPhase(aluguel: AluguelComItem | null): QuadraAlu
     return 'em_uso';
   }
   return null;
-}
-
-/**
- * Ao fim do horário: libera a quadra e passa para aguardando_nfc.
- * Após 10 min sem NFC: encerra como devolvido (sem multa).
- */
-export async function syncQuadraAluguelTiming(
-  aluguel: AluguelComItem,
-): Promise<boolean> {
-  if (!isQuadraAluguelRow(aluguel)) return false;
-
-  const now = Date.now();
-  const fim = new Date(aluguel.fim_previsto).getTime();
-  const graceEnd = getQuadraGraceDeadline(aluguel.fim_previsto).getTime();
-
-  if (aluguel.status === 'ativo' && now >= fim) {
-    const { error: aluguelError } = await supabase
-      .from('alugueis')
-      .update({ status: 'aguardando_nfc' })
-      .eq('id', aluguel.id);
-
-    if (aluguelError) return false;
-
-    if (aluguel.item_id) {
-      await supabase.from('itens').update({ disponivel: true }).eq('id', aluguel.item_id);
-    }
-    return true;
-  }
-
-  if (aluguel.status === 'aguardando_nfc' && now >= graceEnd) {
-    const { error } = await supabase
-      .from('alugueis')
-      .update({
-        status: 'devolvido',
-        // fim no horário previsto: encerramento automático da quadra sem multa
-        fim_real: aluguel.fim_previsto,
-      })
-      .eq('id', aluguel.id);
-
-    return !error;
-  }
-
-  return false;
-}
-
-export async function syncAllQuadraAlugueisTiming(
-  alugueis: AluguelComItem[],
-): Promise<boolean> {
-  let updated = false;
-  for (const aluguel of alugueis) {
-    if (
-      isQuadraAluguelRow(aluguel) &&
-      (aluguel.status === 'ativo' || aluguel.status === 'aguardando_nfc')
-    ) {
-      if (await syncQuadraAluguelTiming(aluguel)) {
-        updated = true;
-      }
-    }
-  }
-  return updated;
 }

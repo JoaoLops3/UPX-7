@@ -28,14 +28,14 @@ export function navigateRoot<RouteName extends keyof RootStackParamList>(
     case 'Active':
       navigationRef.navigate('Home', { screen: 'Active' });
       return;
-    case 'Devolucao':
-      navigateToHomeTab();
-      return;
     case 'Fines':
       navigationRef.navigate('Profile', { screen: 'Fines' });
       return;
     case 'NotificationSettings':
       navigationRef.navigate('Profile', { screen: 'NotificationSettings' });
+      return;
+    case 'Help':
+      navigationRef.navigate('Profile', { screen: 'Help' });
       return;
     default:
       return;
@@ -50,6 +50,11 @@ export function navigateToHomeTab() {
       params: { screen: 'HomeMain' },
     }),
   );
+}
+
+export function navigateToActive() {
+  if (!navigationRef.isReady()) return;
+  navigationRef.navigate('Home', { screen: 'Active' });
 }
 
 export function navigateToProfile() {

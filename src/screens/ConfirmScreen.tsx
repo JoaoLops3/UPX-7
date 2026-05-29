@@ -22,12 +22,11 @@ import { showAlert } from '../utils/alert';
 import { colors } from '../theme/colors';
 import { border, card } from '../theme/ui';
 import type { ExtraQuadra, Item } from '../types/database';
-import { addDays, formatDate, formatTime } from '../utils/dates';
-import { EXTRA_DISPLAY, EXTRA_KEYS, getItemDisplay } from '../utils/itemDisplay';
-import { fetchQuadraBookingsForDay, fetchQuadraBookingsToday } from '../utils/quadraAgenda';
+import { formatDate, formatTime } from '../utils/dates';
+import { EXTRA_DISPLAY, EXTRA_KEYS, ITEM_DISPLAY } from '../utils/itemDisplay';
+import { fetchQuadraBookingsForDay } from '../utils/quadraAgenda';
 import {
   allowedQuadraDurations,
-  canRentQuadraToday,
   computeQuadraFimPrevisto,
   overlapsExistingBooking,
   QUADRA_DURACOES_MIN,
@@ -40,9 +39,6 @@ const DURACOES = QUADRA_DURACOES_MIN;
 
 export default function ConfirmScreen({ navigation, route }: Props) {
   const { contentContainerStyle } = useScreenContentInsets(40);
-  const tipo = route.params.item;
-  const mode = route.params.mode ?? 'now';
-  const isSchedule = tipo === 'quadra' && mode === 'schedule';
   const scheduledStartIso = route.params.scheduledStart;
   const { aluno, loading: alunoLoading } = useAluno();
   const { alugueis } = useAlugueis(aluno?.id ?? '');
@@ -57,73 +53,58 @@ export default function ConfirmScreen({ navigation, route }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [quadraBookings, setQuadraBookings] = useState<QuadraBooking[]>([]);
 
+  const slotInicio = useMemo(() => new Date(scheduledStartIso), [scheduledStartIso]);
+
   const fetchItem = useCallback(async () => {
     setLoadingItem(true);
-    let query = supabase.from('itens').select('*').eq('tipo', tipo);
-    if (!isSchedule) {
-      query = query.eq('disponivel', true);
-    }
-    const { data } = await query.limit(1).maybeSingle();
+    const { data } = await supabase.from('itens').select('*').eq('tipo', 'quadra').limit(1).maybeSingle();
     setItem((data as Item) ?? null);
     setLoadingItem(false);
-  }, [tipo, isSchedule]);
+  }, []);
 
   useEffect(() => {
-    fetchItem();
+    void fetchItem();
   }, [fetchItem]);
 
-  const slotInicio = useMemo(() => {
-    if (isSchedule && scheduledStartIso) return new Date(scheduledStartIso);
-    return new Date();
-  }, [isSchedule, scheduledStartIso]);
-
   useEffect(() => {
-    if (tipo !== 'quadra' || !item?.id) {
+    if (!item?.id) {
       setQuadraBookings([]);
       return;
     }
-    const load = isSchedule
-      ? fetchQuadraBookingsForDay(item.id, slotInicio)
-      : fetchQuadraBookingsToday(item.id);
-    void load.then(setQuadraBookings);
-  }, [tipo, item?.id, isSchedule, slotInicio]);
+    void fetchQuadraBookingsForDay(item.id, slotInicio).then(setQuadraBookings);
+  }, [item?.id, slotInicio]);
 
-  const duracoesPermitidas = useMemo(() => {
-    if (tipo !== 'quadra') return [...DURACOES];
-    return allowedQuadraDurations(quadraBookings, slotInicio);
-  }, [tipo, quadraBookings, slotInicio]);
+  const duracoesPermitidas = useMemo(
+    () => allowedQuadraDurations(quadraBookings, slotInicio),
+    [quadraBookings, slotInicio],
+  );
 
   useEffect(() => {
-    if (tipo !== 'quadra' || duracoesPermitidas.length === 0) return;
+    if (duracoesPermitidas.length === 0) return;
     const current = DURACOES[duracaoIdx];
     if (!duracoesPermitidas.includes(current)) {
       const lastAllowed = duracoesPermitidas[duracoesPermitidas.length - 1];
       const idx = DURACOES.indexOf(lastAllowed as (typeof DURACOES)[number]);
       if (idx >= 0) setDuracaoIdx(idx);
     }
-  }, [tipo, duracoesPermitidas, duracaoIdx]);
+  }, [duracoesPermitidas, duracaoIdx]);
 
   const duracaoMin = duracoesPermitidas.includes(DURACOES[duracaoIdx])
     ? DURACOES[duracaoIdx]
     : (duracoesPermitidas[duracoesPermitidas.length - 1] ?? DURACOES[0]);
 
-  const fimPrevisto = useMemo(() => {
-    if (tipo === 'quadra') {
-      return computeQuadraFimPrevisto(slotInicio, duracaoMin);
-    }
-    return addDays(new Date(), 7);
-  }, [tipo, duracaoMin, slotInicio]);
+  const fimPrevisto = useMemo(
+    () => computeQuadraFimPrevisto(slotInicio, duracaoMin),
+    [duracaoMin, slotInicio],
+  );
 
   const quadraBloqueada =
-    tipo === 'quadra' &&
-    (isSchedule
-      ? duracoesPermitidas.length === 0 ||
-        overlapsExistingBooking(
-          quadraBookings,
-          slotInicio,
-          computeQuadraFimPrevisto(slotInicio, duracaoMin),
-        )
-      : !canRentQuadraToday(quadraBookings) || duracoesPermitidas.length === 0);
+    duracoesPermitidas.length === 0 ||
+    overlapsExistingBooking(
+      quadraBookings,
+      slotInicio,
+      computeQuadraFimPrevisto(slotInicio, duracaoMin),
+    );
 
   const duracaoLabel = useMemo(() => {
     if (duracaoMin === 30) return '30min';
@@ -140,99 +121,70 @@ export default function ConfirmScreen({ navigation, route }: Props) {
       return;
     }
 
-    if (tipo === 'quadra') {
-      if (isSchedule && hasOutraReservaAgendada(alugueis)) {
-        showAlert(
-          'Reserva existente',
-          'Você já tem uma reserva agendada. Cancele-a antes de criar outra.',
-        );
-        return;
-      }
-      const inicioCheck = isSchedule ? slotInicio : new Date();
-      if (!isSchedule && !canRentQuadraToday(quadraBookings, inicioCheck)) {
-        showAlert(
-          'Quadra indisponível',
-          'Não há horários para alugar hoje. Funcionamento até 22h; se já houver aluguel até esse horário, o dia encerra.',
-        );
-        return;
-      }
-      if (duracoesPermitidas.length === 0) {
-        showAlert(
-          'Quadra indisponível',
-          'Não há tempo suficiente antes das 22h ou do próximo agendamento.',
-        );
-        return;
-      }
-      const fimCheck = computeQuadraFimPrevisto(inicioCheck, duracaoMin);
-      if (overlapsExistingBooking(quadraBookings, inicioCheck, fimCheck)) {
-        showAlert('Horário ocupado', 'Outro aluguel já ocupa este período. Escolha outra duração.');
-        return;
-      }
+    if (hasOutraReservaAgendada(alugueis)) {
+      showAlert(
+        'Reserva existente',
+        'Você já tem uma reserva agendada. Cancele-a antes de criar outra.',
+      );
+      return;
+    }
+
+    if (duracoesPermitidas.length === 0) {
+      showAlert(
+        'Quadra indisponível',
+        'Não há tempo suficiente antes das 22h ou do próximo agendamento.',
+      );
+      return;
+    }
+
+    const fimCheck = computeQuadraFimPrevisto(slotInicio, duracaoMin);
+    if (overlapsExistingBooking(quadraBookings, slotInicio, fimCheck)) {
+      showAlert('Horário ocupado', 'Outro aluguel já ocupa este período. Escolha outra duração.');
+      return;
     }
 
     setSubmitting(true);
-    const inicio = (isSchedule ? slotInicio : new Date()).toISOString();
-    const fimSalvar =
-      tipo === 'quadra'
-        ? computeQuadraFimPrevisto(new Date(inicio), duracaoMin).toISOString()
-        : fimPrevisto.toISOString();
-
-    const status = isSchedule ? 'agendado' : 'ativo';
+    const inicio = slotInicio.toISOString();
+    const fimSalvar = computeQuadraFimPrevisto(slotInicio, duracaoMin).toISOString();
 
     const { error: insertError } = await supabase.from('alugueis').insert({
       aluno_id: aluno.id,
       item_id: item.id,
       inicio,
       fim_previsto: fimSalvar,
-      status,
-      com_extra: tipo === 'quadra' ? extrasSelecionados.length > 0 : false,
-      extras: tipo === 'quadra' ? extrasSelecionados : [],
+      status: 'agendado',
+      com_extra: extrasSelecionados.length > 0,
+      extras: extrasSelecionados,
     } as never);
+
+    setSubmitting(false);
 
     if (insertError) {
       showAlert('Erro', insertError.message);
-      setSubmitting(false);
       return;
     }
 
-    if (!isSchedule) {
-      await supabase.from('itens').update({ disponivel: false }).eq('id', item.id);
-      setSubmitting(false);
-      navigateRoot('Active');
-      return;
-    }
-
-    setSubmitting(false);
-    showAlert('Reserva confirmada', 'No dia, faça check-in no totem NFC no horário reservado.', [
+    showAlert('Reserva confirmada', 'No horário, vá ao totem e aproxime a carteirinha para fazer check-in.', [
       { text: 'OK', onPress: () => navigateRoot('MainTabs') },
     ]);
   };
 
   if (alunoLoading || loadingItem) return <LoadingView />;
 
-  const display = getItemDisplay(tipo);
+  const display = ITEM_DISPLAY.quadra;
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={contentContainerStyle}>
       <BackButton onPress={() => navigation.goBack()} style={styles.backSpacing} />
 
-      <Text style={styles.title}>{isSchedule ? 'Confirmar reserva' : 'Confirmar aluguel'}</Text>
+      <Text style={styles.title}>Confirmar reserva</Text>
       <Text style={styles.subtitle}>
-        {isSchedule
-          ? `Reserva para ${formatDate(slotInicio.toISOString())} às ${formatTime(slotInicio.toISOString())}`
-          : tipo === 'quadra'
-            ? 'Revise a duração e os extras antes de confirmar'
-            : 'Confira o número do guarda-chuva atribuído'}
+        {formatDate(slotInicio.toISOString())} às {formatTime(slotInicio.toISOString())}
       </Text>
 
       <View style={styles.itemCard}>
         <View style={styles.itemRow}>
-          <Ionicons
-            name={display.icon}
-            size={24}
-            color={colors.primaryDark}
-            accessibilityElementsHidden
-          />
+          <Ionicons name={display.icon} size={24} color={colors.primaryDark} accessibilityElementsHidden />
           <View style={styles.itemInfo}>
             <Text style={styles.itemName}>{item?.nome ?? display.label}</Text>
             <Text style={styles.itemLoc}>{item?.localizacao}</Text>
@@ -241,112 +193,81 @@ export default function ConfirmScreen({ navigation, route }: Props) {
             <Text style={styles.badgeText}>Livre</Text>
           </View>
         </View>
-
-        {tipo === 'guarda_chuva' && item && (
-          <View style={styles.numeroBox}>
-            <Text style={styles.numeroLabel}>Seu número</Text>
-            <Text style={styles.numeroValue}>#{item.numero}</Text>
-            <Text style={styles.numeroHint}>
-              Pegue o guarda-chuva número {item.numero} na {item.localizacao}
-            </Text>
-          </View>
-        )}
       </View>
 
-      {tipo === 'quadra' ? (
-        <>
-          {quadraBloqueada ? (
-            <View style={styles.warningBox}>
-              <Text style={styles.warningText}>
-                A quadra não pode ser alugada agora. Horário de funcionamento: 8h às 22h. Aluguéis
-                não podem passar das 22h; se já houver reserva até esse horário, não há mais vagas
-                hoje.
-              </Text>
-            </View>
-          ) : null}
+      {quadraBloqueada ? (
+        <View style={styles.warningBox}>
+          <Text style={styles.warningText}>
+            A quadra não pode ser reservada neste horário. Funcionamento: 8h às 22h.
+          </Text>
+        </View>
+      ) : null}
 
-          <Text style={styles.sectionLabel}>Duração</Text>
-          <View style={styles.durationRow}>
-            <Pressable
-              style={({ pressed }) => [styles.durationBtn, pressed && styles.durationPressed]}
-              onPress={() => {
-                const pos = duracoesPermitidas.indexOf(duracaoMin);
-                if (pos > 0) {
-                  const prev = duracoesPermitidas[pos - 1];
-                  const idx = DURACOES.indexOf(prev as (typeof DURACOES)[number]);
-                  if (idx >= 0) setDuracaoIdx(idx);
-                }
-              }}
-              disabled={duracoesPermitidas.indexOf(duracaoMin) <= 0}
-              accessibilityLabel="Diminuir duração"
-            >
-              <Text style={styles.durationBtnText}>−</Text>
-            </Pressable>
-            <Text style={styles.durationValue}>{duracaoLabel}</Text>
-            <Pressable
-              style={({ pressed }) => [styles.durationBtn, pressed && styles.durationPressed]}
-              onPress={() => {
-                const pos = duracoesPermitidas.indexOf(duracaoMin);
-                if (pos >= 0 && pos < duracoesPermitidas.length - 1) {
-                  const next = duracoesPermitidas[pos + 1];
-                  const idx = DURACOES.indexOf(next as (typeof DURACOES)[number]);
-                  if (idx >= 0) setDuracaoIdx(idx);
-                }
-              }}
-              disabled={
-                duracoesPermitidas.indexOf(duracaoMin) < 0 ||
-                duracoesPermitidas.indexOf(duracaoMin) >= duracoesPermitidas.length - 1
-              }
-              accessibilityLabel="Aumentar duração"
-            >
-              <Text style={styles.durationBtnText}>+</Text>
-            </Pressable>
-          </View>
+      <Text style={styles.sectionLabel}>Duração</Text>
+      <View style={styles.durationRow}>
+        <Pressable
+          style={({ pressed }) => [styles.durationBtn, pressed && styles.durationPressed]}
+          onPress={() => {
+            const pos = duracoesPermitidas.indexOf(duracaoMin);
+            if (pos > 0) {
+              const prev = duracoesPermitidas[pos - 1];
+              const idx = DURACOES.indexOf(prev as (typeof DURACOES)[number]);
+              if (idx >= 0) setDuracaoIdx(idx);
+            }
+          }}
+          disabled={duracoesPermitidas.indexOf(duracaoMin) <= 0}
+          accessibilityLabel="Diminuir duração"
+        >
+          <Text style={styles.durationBtnText}>−</Text>
+        </Pressable>
+        <Text style={styles.durationValue}>{duracaoLabel}</Text>
+        <Pressable
+          style={({ pressed }) => [styles.durationBtn, pressed && styles.durationPressed]}
+          onPress={() => {
+            const pos = duracoesPermitidas.indexOf(duracaoMin);
+            if (pos >= 0 && pos < duracoesPermitidas.length - 1) {
+              const next = duracoesPermitidas[pos + 1];
+              const idx = DURACOES.indexOf(next as (typeof DURACOES)[number]);
+              if (idx >= 0) setDuracaoIdx(idx);
+            }
+          }}
+          disabled={
+            duracoesPermitidas.indexOf(duracaoMin) < 0 ||
+            duracoesPermitidas.indexOf(duracaoMin) >= duracoesPermitidas.length - 1
+          }
+          accessibilityLabel="Aumentar duração"
+        >
+          <Text style={styles.durationBtnText}>+</Text>
+        </Pressable>
+      </View>
 
-          <Text style={styles.sectionLabel}>Extras (opcional)</Text>
-          {EXTRA_KEYS.map((key) => {
-            const meta = EXTRA_DISPLAY[key];
-            const checked = extras[key];
-            return (
-              <View key={key} style={styles.extraRow}>
-                <View style={styles.extraInfo}>
-                  <View style={styles.extraIconWrap}>
-                    <Ionicons name={meta.icon} size={18} color={colors.primaryDark} />
-                  </View>
-                  <View style={styles.extraTexts}>
-                    <Text style={styles.extraTitle}>{meta.label}</Text>
-                    <Text style={styles.extraSub}>Disponível · {meta.unidades} unidades</Text>
-                  </View>
-                </View>
-                <Switch
-                  value={checked}
-                  onValueChange={(v) =>
-                    setExtras((prev) => ({ ...prev, [key]: v }))
-                  }
-                  trackColor={{ false: colors.border, true: colors.primary }}
-                  accessibilityLabel={`Incluir ${meta.label}`}
-                />
+      <Text style={styles.sectionLabel}>Extras (opcional)</Text>
+      {EXTRA_KEYS.map((key) => {
+        const meta = EXTRA_DISPLAY[key];
+        return (
+          <View key={key} style={styles.extraRow}>
+            <View style={styles.extraInfo}>
+              <View style={styles.extraIconWrap}>
+                <Ionicons name={meta.icon} size={18} color={colors.primaryDark} />
               </View>
-            );
-          })}
-
-          <Text style={styles.estimate}>
-            Término estimado: {formatTime(fimPrevisto.toISOString())} (máx. 22h)
-          </Text>
-        </>
-      ) : (
-        <>
-          <View style={styles.warningBox}>
-            <Text style={styles.warningText}>
-              Prazo de devolução: 7 dias. Devolver até {formatDate(fimPrevisto.toISOString())}.
-              {'\n'}Atrasos geram multa de R$5,00/dia registrada no seu RA.
-            </Text>
+              <View style={styles.extraTexts}>
+                <Text style={styles.extraTitle}>{meta.label}</Text>
+                <Text style={styles.extraSub}>Disponível · {meta.unidades} unidades</Text>
+              </View>
+            </View>
+            <Switch
+              value={extras[key]}
+              onValueChange={(v) => setExtras((prev) => ({ ...prev, [key]: v }))}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              accessibilityLabel={`Incluir ${meta.label}`}
+            />
           </View>
-          <Text style={styles.estimate}>
-            Devolver até: {formatDate(fimPrevisto.toISOString())}
-          </Text>
-        </>
-      )}
+        );
+      })}
+
+      <Text style={styles.estimate}>
+        Término estimado: {formatTime(fimPrevisto.toISOString())} (máx. 22h)
+      </Text>
 
       <Pressable
         style={({ pressed }) => [
@@ -354,16 +275,14 @@ export default function ConfirmScreen({ navigation, route }: Props) {
           pressed && styles.confirmPressed,
           (submitting || !item) && styles.confirmDisabled,
         ]}
-        onPress={handleConfirm}
+        onPress={() => void handleConfirm()}
         disabled={submitting || !item || quadraBloqueada}
-        accessibilityLabel="Confirmar aluguel"
+        accessibilityLabel="Confirmar reserva"
       >
         {submitting ? (
           <ActivityIndicator color={colors.white} />
         ) : (
-          <Text style={styles.confirmText}>
-            {isSchedule ? 'Confirmar reserva' : 'Confirmar aluguel'}
-          </Text>
+          <Text style={styles.confirmText}>Confirmar reserva</Text>
         )}
       </Pressable>
     </ScrollView>
@@ -373,18 +292,8 @@ export default function ConfirmScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.screenBg },
   backSpacing: { marginBottom: 8 },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.primaryVeryDark,
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginBottom: 16,
-    lineHeight: 18,
-  },
+  title: { fontSize: 22, fontWeight: '700', color: colors.primaryVeryDark, marginBottom: 4 },
+  subtitle: { fontSize: 13, color: colors.textMuted, marginBottom: 16, lineHeight: 18 },
   itemCard: {
     backgroundColor: colors.white,
     borderRadius: 12,
@@ -400,16 +309,6 @@ const styles = StyleSheet.create({
   badge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
   badgeFree: { backgroundColor: colors.successBg },
   badgeText: { fontSize: 11, fontWeight: '600', color: colors.successText },
-  numeroBox: {
-    marginTop: 14,
-    backgroundColor: colors.primaryVeryDark,
-    borderRadius: 8,
-    padding: 14,
-    alignItems: 'center',
-  },
-  numeroLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 12 },
-  numeroValue: { color: colors.white, fontSize: 36, fontWeight: '700', marginVertical: 4 },
-  numeroHint: { color: 'rgba(255,255,255,0.85)', fontSize: 12, textAlign: 'center' },
   sectionLabel: { fontSize: 14, fontWeight: '600', color: colors.primaryVeryDark, marginBottom: 8 },
   durationRow: {
     flexDirection: 'row',
