@@ -8,17 +8,22 @@ import { border } from '../theme/ui';
 
 export type TotemAluno = { id: string; nome: string | null };
 
+type AtivoItem = { id: string; nome: string | null; tipo: string };
+
 type Status = {
-  aluguel_ativo: { id: string; nome: string | null; tipo: string } | null;
+  alugueis_ativos: AtivoItem[];
   checkin_disponivel: boolean;
   guarda_disponivel: boolean;
 };
 
 type RpcResult = { ok: boolean; message?: string; item?: string | null };
 
+type TotemActionRpc = 'totem_alugar_guarda_chuva' | 'totem_checkin_quadra';
+
 type Props = {
   aluno: TotemAluno;
   onFinish: () => void;
+  onLogout: () => void;
 };
 
 const IDLE_TIMEOUT_MS = 30000;
@@ -26,7 +31,7 @@ const DONE_AFTER_MS = 3500;
 
 type Tab = 'alugar' | 'quadra' | 'devolver';
 
-export default function TotemActionScreen({ aluno, onFinish }: Props) {
+export default function TotemActionScreen({ aluno, onFinish, onLogout }: Props) {
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>('alugar');
   const [status, setStatus] = useState<Status | null>(null);
@@ -37,6 +42,7 @@ export default function TotemActionScreen({ aluno, onFinish }: Props) {
 
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const doneTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialTabSet = useRef(false);
 
   const resetIdle = useCallback(() => {
     if (idleTimer.current) clearTimeout(idleTimer.current);
@@ -45,8 +51,16 @@ export default function TotemActionScreen({ aluno, onFinish }: Props) {
 
   const loadStatus = useCallback(async () => {
     const { data } = await supabase.rpc('totem_status_aluno', { p_aluno_id: aluno.id });
-    setStatus((data as Status | null) ?? null);
+    const next = (data as Status | null) ?? null;
+    setStatus(next);
     setLoading(false);
+    if (!initialTabSet.current && next) {
+      initialTabSet.current = true;
+      const ativos = next.alugueis_ativos ?? [];
+      if (ativos.length > 0) setTab('devolver');
+      else if (next.checkin_disponivel) setTab('quadra');
+      else setTab('alugar');
+    }
   }, [aluno.id]);
 
   useEffect(() => {
@@ -68,7 +82,7 @@ export default function TotemActionScreen({ aluno, onFinish }: Props) {
   );
 
   const runAction = useCallback(
-    async (fn: string, sucessoTitle: string) => {
+    async (fn: TotemActionRpc, sucessoTitle: string) => {
       if (busy) return;
       resetIdle();
       setBanner(null);
@@ -83,6 +97,36 @@ export default function TotemActionScreen({ aluno, onFinish }: Props) {
         if (res.ok) {
           const item = res.item ? ` — ${res.item}` : '';
           finishWith(sucessoTitle, `${aluno.nome ?? 'Aluno'}${item}`);
+        } else {
+          setBanner(res.message ?? 'Não foi possível concluir.');
+          await loadStatus();
+        }
+      } finally {
+        setBusy(false);
+      }
+    },
+    [aluno.id, aluno.nome, busy, finishWith, loadStatus, resetIdle],
+  );
+
+  const runDevolver = useCallback(
+    async (aluguelId: string) => {
+      if (busy) return;
+      resetIdle();
+      setBanner(null);
+      setBusy(true);
+      try {
+        const { data, error } = await supabase.rpc('totem_devolver', {
+          p_aluno_id: aluno.id,
+          p_aluguel_id: aluguelId,
+        });
+        if (error) {
+          setBanner('Erro ao processar. Tente novamente.');
+          return;
+        }
+        const res = (data as RpcResult | null) ?? { ok: false };
+        if (res.ok) {
+          const item = res.item ? ` — ${res.item}` : '';
+          finishWith('Devolução concluída', `${aluno.nome ?? 'Aluno'}${item}`);
         } else {
           setBanner(res.message ?? 'Não foi possível concluir.');
           await loadStatus();
@@ -115,7 +159,7 @@ export default function TotemActionScreen({ aluno, onFinish }: Props) {
     );
   }
 
-  const ativo = status?.aluguel_ativo ?? null;
+  const ativos = status?.alugueis_ativos ?? [];
   const podeGuarda = !!status?.guarda_disponivel;
   const podeCheckin = !!status?.checkin_disponivel;
 
@@ -179,15 +223,23 @@ export default function TotemActionScreen({ aluno, onFinish }: Props) {
         ) : (
           <View style={styles.page}>
             <Text style={styles.pageTitle}>Devolver item</Text>
-            {ativo ? (
-              <ActionCard
-                icon={ativo.tipo === 'quadra' ? 'tennisball-outline' : 'umbrella-outline'}
-                title={`Devolver ${ativo.nome ?? 'item'}`}
-                subtitle="Encerrar o aluguel ativo"
-                disabled={busy}
-                loading={busy}
-                onPress={() => void runAction('totem_devolver', 'Devolução concluída')}
-              />
+            {ativos.length > 0 ? (
+              <>
+                {ativos.length > 1 ? (
+                  <Text style={styles.pageHint}>Escolha qual item devolver:</Text>
+                ) : null}
+                {ativos.map((item) => (
+                  <ActionCard
+                    key={item.id}
+                    icon={item.tipo === 'quadra' ? 'tennisball-outline' : 'umbrella-outline'}
+                    title={`Devolver ${item.nome ?? 'item'}`}
+                    subtitle="Encerrar este aluguel"
+                    disabled={busy}
+                    loading={busy}
+                    onPress={() => void runDevolver(item.id)}
+                  />
+                ))}
+              </>
             ) : (
               <View style={styles.empty}>
                 <Ionicons name="checkmark-done-outline" size={40} color={colors.textMuted} />
@@ -204,6 +256,19 @@ export default function TotemActionScreen({ aluno, onFinish }: Props) {
           </View>
         ) : null}
       </View>
+
+      <Pressable
+        onPress={onLogout}
+        style={({ pressed }) => [
+          styles.logoutBtn,
+          pressed && { borderColor: colors.primary, backgroundColor: colors.background },
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel="Sair do totem"
+      >
+        <Ionicons name="log-out-outline" size={16} color={colors.textMuted} accessibilityElementsHidden />
+        <Text style={styles.logoutText}>Sair do totem</Text>
+      </Pressable>
 
       <NavBar tab={tab} onSelect={selectTab} bottomInset={insets.bottom} />
     </View>
@@ -333,9 +398,23 @@ const styles = StyleSheet.create({
     ...border,
   },
   exitText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: colors.white,
+    marginBottom: 8,
+    ...border,
+  },
+  logoutText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
   content: { flex: 1, paddingTop: 12 },
   page: { gap: 14 },
   pageTitle: { fontSize: 18, fontWeight: '700', color: colors.primaryVeryDark, marginBottom: 2 },
+  pageHint: { fontSize: 14, color: colors.textMuted, marginBottom: 4 },
   actionCard: {
     flexDirection: 'row',
     alignItems: 'center',

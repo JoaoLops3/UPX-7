@@ -1,5 +1,4 @@
 import { CommonActions, createNavigationContainerRef } from '@react-navigation/native';
-import type { ItemTipo } from '../types/database';
 import type { AppTabParamList, HomeStackParamList, RootStackParamList } from './types';
 
 export const navigationRef = createNavigationContainerRef<AppTabParamList>();
@@ -30,7 +29,6 @@ export function navigateRoot<RouteName extends keyof RootStackParamList>(
       navigationRef.navigate('Home', { screen: 'Active' });
       return;
     case 'Devolucao':
-      // Devolução agora é feita no totem; no app levamos o aluno ao Início.
       navigateToHomeTab();
       return;
     case 'Fines':
@@ -44,11 +42,6 @@ export function navigateRoot<RouteName extends keyof RootStackParamList>(
   }
 }
 
-export function navigateToReturn() {
-  // Devolução migrou para o totem; no app só voltamos ao Início.
-  navigateToHomeTab();
-}
-
 export function navigateToHomeTab() {
   if (!navigationRef.isReady()) return;
   navigationRef.dispatch(
@@ -57,11 +50,6 @@ export function navigateToHomeTab() {
       params: { screen: 'HomeMain' },
     }),
   );
-}
-
-export function navigateToScan(_item?: ItemTipo) {
-  // A retirada/aluguel passou a ser feita no totem físico; no app vamos ao Início.
-  navigateToHomeTab();
 }
 
 export function navigateToProfile() {

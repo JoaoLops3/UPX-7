@@ -1,92 +1,67 @@
-# Totem NFC — integração com o site UPX 7
+# Totem NFC — integração com o UPX 7
 
-## Fluxo
+## Fluxo (totem interativo)
 
 ```text
-Tag NFC → Arduino (TAG-NFC.ino) → USB → pc-bridge → INSERT em logs_nfc
-                                                       ↓
-                          trigger processar_leitura_nfc (no banco)
-                          ↳ acha o aluno pelo uid_cartao
-                          ↳ decide e executa a ação pelo estado do aluno
-                                                       ↓ Realtime
-                                          App (apenas observa / atualiza)
+Tag NFC → Arduino → USB → pc-bridge → INSERT logs_nfc
+                                          ↓
+                    trigger: só IDENTIFICA (acao = identificacao | aluno_desconhecido)
+                                          ↓ Realtime
+                    App do totem (conta totem@facens.br) abre sessão do aluno
+                                          ↓
+                    Aluno escolhe na UI: Alugar guarda-chuva | Confirmar quadra | Devolver
+                                          ↓
+                    RPCs totem_* (SECURITY DEFINER) executam a ação
 ```
 
-A **ação acontece no servidor** (Supabase), não no app. O totem fica fixo na
-quadra e funciona mesmo que o aluno não esteja com o app aberto/logado. O app no
-celular serve para o aluno **ver** reservas, prazos e multas e reage ao resultado.
+O **app do aluno** (celular) serve para **reservar** quadra, **ver** prazos, histórico e multas.
+**Retirar, confirmar e devolver** itens físicos é no **totem** com a carteirinha.
 
-| Estado do aluno na leitura | Ação executada pelo servidor |
-|----------------------------|------------------------------|
-| Reserva de quadra agendada com janela aberta (início −15 min até o fim) | **Check-in** (ativa a reserva) |
-| Aluguel **ativo** ou **aguardando_nfc** | **Devolução** (multa do guarda-chuva atrasado é automática) |
-| Cartão sem cadastro / sem nada pendente | Apenas registra `aluno_desconhecido` / `sem_acao` |
-
-> Iniciar um **aluguel novo** continua sendo feito pelo app no celular — o totem
-> só faz check-in e devolução.
+| Onde | O que faz |
+|------|-----------|
+| App aluno | Reservar data/hora, alugar quadra **hoje** (escolhe slot), ver status |
+| Totem | Identificar NFC → alugar guarda-chuva, check-in da reserva, devolver item(s) |
+| Servidor | Regras, cron de quadra expirada, multas, `logs_nfc` |
 
 ## 1. Hardware
 
-Montagem RC522: [`MONTAGEM-CABOS.md`](MONTAGEM-CABOS.md) (se existir) ou pinos **9–13 + 3.3V + GND**.
+Montagem RC522: pinos **9–13 + 3.3V + GND** (ver `MONTAGEM-CABOS.md` se existir).
 
-## 2. Gravar o Arduino
+## 2. Arduino
 
-1. Abra `rc522-test-ntag213/TAG-NFC.ino` na Arduino IDE.
-2. Placa: **Arduino Uno**.
-3. Biblioteca: **MFRC522**.
-4. Upload.
+1. `rc522-test-ntag213/TAG-NFC.ino` — placa Uno, biblioteca MFRC522, **9600** baud.
+2. Ao aproximar a tag: `LOG:42E28005` no Serial.
 
-Ao aproximar a tag: `LOG:42E28005` e `[OK] Tag liberada` no Serial (**9600** baud).
+## 3. Cadastrar UID
 
-## 3. Cadastrar UID no aluno
+Tabela `alunos.uid_nfc` = mesmo hex do `LOG:` (maiúsculo, sem espaços).
 
-No Supabase, tabela `alunos`, campo `uid_nfc`:
-
-- Mesmo valor do `LOG:` (hex maiúsculo, sem espaços), ex.: `42E28005`
-
-## 4. Ponte USB → site
+## 4. Ponte USB (`pc-bridge`)
 
 ```bash
 cd firmware/pc-bridge
 npm install
 cp .env.example .env
+# SUPABASE_URL, SUPABASE_KEY (service_role), TOTEM_ID, SERIAL_PORT
+npm start -- --port /dev/cu.usbmodem1101
 ```
 
-Preencha `.env`:
+A ponte reconecta se a USB cair e avisa no console se o cartão não estiver cadastrado.
 
-- `SUPABASE_URL` — igual ao app (`EXPO_PUBLIC_SUPABASE_URL`)
-- `SUPABASE_KEY` — **service_role** (só no `.env`, nunca no app)
-- `TOTEM_ID` — ex.: `TOTEM-QUADRA-01`
-- `SERIAL_BAUD=9600`
-- `SERIAL_PORT` — ou passe na linha de comando
+## 5. App totem
 
-```bash
-npm run ports
-npm start -- --port /dev/cu.usbmodem14101
-```
+1. Login: `totem@facens.br` (ver migration `totem_profile`).
+2. Tela ociosa → aproximar carteirinha → navbar **Alugar / Quadra / Devolver**.
+3. Sessão encerra após inatividade ou ao concluir ação.
 
-Feche o **Monitor Serial** da Arduino IDE antes de rodar o bridge.
+## 6. Testar (aluno)
 
-## 5. Testar o app
+1. `npm run dev` + login aluno com `uid_nfc`.
+2. Reservar quadra ou guarda-chuva (app) → ir ao totem para confirmar/devolver.
+3. Bridge + Arduino rodando.
 
-1. `npm run dev` — app aberto no navegador.
-2. Login como aluno com `uid_nfc` cadastrado.
-3. Bridge rodando + Arduino conectado.
-4. **Check-in:** tela Scan → aproximar tag.
-5. **Devolução:** aba Devolução com aluguel ativo → aproximar tag.
+## Migrações relevantes
 
-## Migração Supabase
-
-Aplique, em ordem:
-
-1. `supabase/migrations/20260528120000_logs_nfc_student_realtime.sql` — aluno recebe Realtime do próprio cartão.
-2. `supabase/migrations/20260528130000_logs_nfc_insert_totem.sql` — pc-bridge pode gravar leituras.
-3. `supabase/migrations/20260528140000_nfc_totem_server_side_actions.sql` — trigger que faz check-in/devolução no servidor.
-
-## Pastas
-
-| Pasta | Uso |
-|-------|-----|
-| `rc522-test-ntag213/TAG-NFC.ino` | Sketch principal (LED + LOG) |
-| `pc-bridge/` | Envia leituras ao Supabase |
-| `upx7-totem-nfc/` | Variante só LOG (115200 baud) |
+1. `20260528140000_nfc_totem_server_side_actions.sql` — logs NFC (histórico)
+2. `20260529000000_totem_interativo.sql` — identificação + RPCs totem
+3. `20260529120000_totem_polish.sql` — cron quadra, devolver múltiplo, `via_totem`

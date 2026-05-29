@@ -90,7 +90,7 @@ export default function TotemKioskScreen() {
   }, [signOut]);
 
   if (aluno) {
-    return <TotemActionScreen aluno={aluno} onFinish={handleFinish} />;
+    return <TotemActionScreen aluno={aluno} onFinish={handleFinish} onLogout={handleLogout} />;
   }
 
   return (

@@ -191,8 +191,11 @@ export default function HomeScreen({ navigation }: Props) {
   );
 
   const quadraPodeAlugar = useMemo(
-    () => canRentQuadraToday(quadraBookings, agendaNow) && Boolean(quadra?.disponivel),
-    [quadraBookings, agendaNow, quadra?.disponivel],
+    () =>
+      canRentQuadraToday(quadraBookings, agendaNow) &&
+      Boolean(quadra?.disponivel) &&
+      !reservaQuadra,
+    [quadraBookings, agendaNow, quadra?.disponivel, reservaQuadra],
   );
 
   const quadraIndisponivel = useMemo(
@@ -385,11 +388,13 @@ export default function HomeScreen({ navigation }: Props) {
           <View style={styles.cardBody}>
             <Text style={styles.cardTitle}>{quadra?.nome ?? 'Quadra A'}</Text>
             <Text style={styles.cardSub}>
-              {quadraPodeAlugar
-                ? (quadra?.localizacao ?? 'Campus Facens')
-                : quadraIndisponivel === 'closed'
-                  ? 'Sem horários hoje · último slot 22h'
-                  : 'Em uso no momento'}
+              {reservaQuadra
+                ? 'Você já tem uma reserva — confirme no totem no horário'
+                : quadraPodeAlugar
+                  ? (quadra?.localizacao ?? 'Campus Facens')
+                  : quadraIndisponivel === 'closed'
+                    ? 'Sem horários hoje · último slot 22h'
+                    : 'Em uso no momento'}
             </Text>
           </View>
           <View

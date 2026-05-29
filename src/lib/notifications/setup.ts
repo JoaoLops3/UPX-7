@@ -1,4 +1,4 @@
-import { navigateRoot, navigateToHomeTab, navigateToReturn, navigateToScan } from '../../navigation/rootNavigation';
+import { navigateRoot, navigateToHomeTab } from '../../navigation/rootNavigation';
 import type { NotificationKind } from './constants';
 import { notificationsSupportedOnPlatform } from './preferences';
 
@@ -35,14 +35,10 @@ function handleNotificationNavigation(data: Record<string, unknown> | undefined)
   const kind = data?.kind as NotificationKind | undefined;
   switch (kind) {
     case 'rain':
-      navigateToScan('guarda_chuva');
-      break;
     case 'reserva':
-      navigateToHomeTab();
-      break;
     case 'devolucao_quadra':
     case 'devolucao_guarda':
-      navigateToReturn();
+      navigateToHomeTab();
       break;
     case 'multa':
       navigateRoot('Fines');

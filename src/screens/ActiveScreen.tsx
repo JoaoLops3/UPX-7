@@ -132,7 +132,9 @@ export default function ActiveScreen({ navigation }: Props) {
 
       <Text style={styles.title}>Aluguel ativo</Text>
       <Text style={styles.subtitle}>
-        {isQuadra ? 'Quadra esportiva' : 'Item em uso · devolva no prazo'}
+        {isQuadra
+          ? 'Quadra em uso · devolva no totem ao fim do horário'
+          : 'Item em uso · devolva no totem dentro do prazo'}
       </Text>
 
       <View style={[styles.heroCard, urgent && styles.heroCardUrgent]}>

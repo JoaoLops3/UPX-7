@@ -10,10 +10,6 @@ export type HomeStackParamList = {
   Active: undefined;
 };
 
-export type ScanStackParamList = {
-  ScanMain: { item?: ItemTipo } | undefined;
-};
-
 export type ProfileStackParamList = {
   ProfileMain: undefined;
   Fines: undefined;
@@ -23,8 +19,6 @@ export type ProfileStackParamList = {
 /** Navegação principal do aluno — tab bar sempre visível. */
 export type AppTabParamList = {
   Home: NavigatorScreenParams<HomeStackParamList>;
-  Devolucao: undefined;
-  Scan: NavigatorScreenParams<ScanStackParamList>;
   History: undefined;
   Profile: NavigatorScreenParams<ProfileStackParamList>;
 };
@@ -35,6 +29,7 @@ export type RootStackParamList = {
   Confirm: HomeStackParamList['Confirm'];
   QuadraReserva: HomeStackParamList['QuadraReserva'];
   Active: undefined;
+  /** @deprecated Devolução é no totem; redireciona para Início. */
   Devolucao: undefined;
   Fines: undefined;
   NotificationSettings: undefined;
@@ -42,11 +37,6 @@ export type RootStackParamList = {
 
 export type HomeStackScreenProps<T extends keyof HomeStackParamList> = CompositeScreenProps<
   StackScreenProps<HomeStackParamList, T>,
-  BottomTabScreenProps<AppTabParamList>
->;
-
-export type ScanStackScreenProps<T extends keyof ScanStackParamList> = CompositeScreenProps<
-  StackScreenProps<ScanStackParamList, T>,
   BottomTabScreenProps<AppTabParamList>
 >;
 
@@ -61,22 +51,16 @@ export type AppTabScreenProps<T extends keyof AppTabParamList> = BottomTabScreen
   T
 >;
 
-/** @deprecated Use HomeStackScreenProps */
-export type MainTabScreenProps<T extends 'Home' | 'Scan' | 'History' | 'Profile'> =
+export type MainTabScreenProps<T extends 'Home' | 'History' | 'Profile'> =
   T extends 'Home'
     ? HomeStackScreenProps<'HomeMain'>
-    : T extends 'Scan'
-      ? ScanStackScreenProps<'ScanMain'>
-      : T extends 'Profile'
-        ? ProfileStackScreenProps<'ProfileMain'>
-        : AppTabScreenProps<'History'>;
+    : T extends 'Profile'
+      ? ProfileStackScreenProps<'ProfileMain'>
+      : AppTabScreenProps<'History'>;
 
-/** @deprecated Use HomeStackScreenProps / ScanStackScreenProps / ProfileStackScreenProps */
 export type RootStackScreenProps<T extends keyof RootStackParamList> =
   T extends 'Confirm' | 'QuadraReserva' | 'Active'
     ? HomeStackScreenProps<T extends 'Confirm' ? 'Confirm' : T extends 'QuadraReserva' ? 'QuadraReserva' : 'Active'>
-    : T extends 'Devolucao'
-      ? AppTabScreenProps<'Devolucao'>
-      : T extends 'Fines'
-        ? ProfileStackScreenProps<'Fines'>
-        : AppTabScreenProps<'Home'>;
+    : T extends 'Fines'
+      ? ProfileStackScreenProps<'Fines'>
+      : AppTabScreenProps<'Home'>;

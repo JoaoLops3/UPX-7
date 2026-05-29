@@ -12,36 +12,66 @@ export type Database = {
   };
   public: {
     Tables: {
+      admins: {
+        Row: {
+          ativo: boolean;
+          criado_em: string;
+          email: string;
+          id: string;
+          nome: string;
+        };
+        Insert: {
+          ativo?: boolean;
+          criado_em?: string;
+          email: string;
+          id?: string;
+          nome: string;
+        };
+        Update: {
+          ativo?: boolean;
+          criado_em?: string;
+          email?: string;
+          id?: string;
+          nome?: string;
+        };
+        Relationships: [];
+      };
       alugueis: {
         Row: {
           aluno_id: string | null;
           com_extra: boolean | null;
+          extras: string[];
           fim_previsto: string;
           fim_real: string | null;
           id: string;
           inicio: string | null;
           item_id: string | null;
           status: string | null;
+          via_totem: boolean;
         };
         Insert: {
           aluno_id?: string | null;
           com_extra?: boolean | null;
+          extras?: string[];
           fim_previsto: string;
           fim_real?: string | null;
           id?: string;
           inicio?: string | null;
           item_id?: string | null;
           status?: string | null;
+          via_totem?: boolean;
         };
         Update: {
           aluno_id?: string | null;
           com_extra?: boolean | null;
+          extras?: string[];
           fim_previsto?: string;
           fim_real?: string | null;
           id?: string;
           inicio?: string | null;
           item_id?: string | null;
           status?: string | null;
+          via_totem?: boolean;
         };
         Relationships: [
           {
@@ -198,12 +228,51 @@ export type Database = {
           },
         ];
       };
+      totens: {
+        Row: {
+          ativo: boolean;
+          criado_em: string;
+          email: string;
+          id: string;
+          nome: string | null;
+          uid_totem: string | null;
+        };
+        Insert: {
+          ativo?: boolean;
+          criado_em?: string;
+          email: string;
+          id?: string;
+          nome?: string | null;
+          uid_totem?: string | null;
+        };
+        Update: {
+          ativo?: boolean;
+          criado_em?: string;
+          email?: string;
+          id?: string;
+          nome?: string | null;
+          uid_totem?: string | null;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      encerrar_quadras_expiradas: { Args: Record<PropertyKey, never>; Returns: number };
+      is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
+      is_totem: { Args: Record<PropertyKey, never>; Returns: boolean };
+      lookup_aluno_email_for_login: { Args: { p_ra: string }; Returns: string };
+      totem_alugar_guarda_chuva: { Args: { p_aluno_id: string }; Returns: Json };
+      totem_aluno_nome: { Args: { p_uid: string }; Returns: string };
+      totem_aluno_por_uid: { Args: { p_uid: string }; Returns: Json };
+      totem_checkin_quadra: { Args: { p_aluno_id: string }; Returns: Json };
+      totem_devolver: {
+        Args: { p_aluguel_id?: string; p_aluno_id: string };
+        Returns: Json;
+      };
+      totem_status_aluno: { Args: { p_aluno_id: string }; Returns: Json };
     };
     Enums: {
       [_ in never]: never;

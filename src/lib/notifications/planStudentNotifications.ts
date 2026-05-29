@@ -92,8 +92,8 @@ export async function planStudentNotifications(input: {
       {
         idSuffix: '15m',
         offsetMin: 15,
-        title: 'Reserva da quadra em 15 minutos',
-        body: `Em breve: ${hora}. Aproxime a carteirinha no totem para liberar a quadra.`,
+        title: 'Sua quadra começa em 15 min',
+        body: `Horário ${hora}. Vá ao totem e aproxime a carteirinha para liberar a quadra.`,
       },
     ];
 
@@ -199,7 +199,7 @@ export async function planStudentNotifications(input: {
         const urgentGuarda = await immediateIfAllowed({
           id: `${NOTIFICATION_ID_PREFIX}devolucao-guarda-urgent:${aluguelAtivo.id}`,
           title: 'Devolver guarda-chuva',
-          body: `Prazo até ${devolucaoAte}. Use a aba Devolução e aproxime a carteirinha no totem.`,
+          body: `Prazo até ${devolucaoAte}. Vá ao totem e use a aba Devolver com sua carteirinha.`,
           kind: 'devolucao_guarda',
           notifyKey: `devolucao-guarda-urgent:${aluguelAtivo.id}`,
         });

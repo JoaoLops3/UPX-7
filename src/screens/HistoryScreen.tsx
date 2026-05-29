@@ -128,6 +128,13 @@ function HistoryItem({
         ? 'Cancelado'
         : null;
 
+  const viaTotem =
+    aluguel.via_totem &&
+    (aluguel.status === 'devolvido' ||
+      aluguel.status === 'atrasado' ||
+      aluguel.status === 'ativo' ||
+      aluguel.status === 'aguardando_nfc');
+
   return (
     <View style={styles.itemCard}>
       <View style={styles.itemIcon}>
@@ -147,6 +154,12 @@ function HistoryItem({
               : `${aluguel.itens.nome} #${aluguel.itens.numero}`}
         </Text>
         <Text style={styles.itemDate}>{formatRelativeDateTime(aluguel.inicio ?? '')}</Text>
+        {viaTotem ? (
+          <View style={styles.totemRow}>
+            <Ionicons name="hardware-chip-outline" size={12} color={colors.primaryDark} />
+            <Text style={styles.totemLabel}>Ação no totem</Text>
+          </View>
+        ) : null}
       </View>
       {temMulta ? (
         <View style={styles.multaBadge}>
@@ -215,6 +228,8 @@ const styles = StyleSheet.create({
   itemBody: { flex: 1 },
   itemTitle: { fontSize: 14, fontWeight: '600', color: colors.primaryVeryDark },
   itemDate: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  totemRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  totemLabel: { fontSize: 11, color: colors.primaryDark, fontWeight: '600' },
   itemDuration: { fontSize: 12, color: colors.primaryDark, fontWeight: '500' },
   itemStatus: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
   multaBadge: {

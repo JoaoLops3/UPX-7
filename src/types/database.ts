@@ -11,29 +11,13 @@ export type AluguelStatus =
   | 'cancelado';
 export type MultaStatus = 'pendente' | 'pago';
 
-export interface Admin {
-  id: string;
-  email: string;
-  nome: string;
-  ativo: boolean;
-  criado_em: string;
-}
-
-export interface Totem {
-  id: string;
-  email: string;
-  nome: string | null;
-  uid_totem: string | null;
-  ativo: boolean;
-  criado_em: string;
-}
-
-/** Linhas do banco — geradas em supabase.generated.ts (regenerar via Supabase MCP). */
+export type Admin = Tables<'admins'>;
+export type Totem = Tables<'totens'>;
 export type Aluno = Tables<'alunos'>;
 export type Item = Tables<'itens'>;
-type AluguelGenerated = Tables<'alugueis'>;
-/** Aluguel + coluna `extras text[]` adicionada manualmente até regenerar os types. */
-export type Aluguel = AluguelGenerated & { extras: ExtraQuadra[] | null };
+export type Aluguel = Omit<Tables<'alugueis'>, 'extras'> & {
+  extras: ExtraQuadra[] | null;
+};
 export type Multa = Tables<'multas'>;
 export type LogNFC = Tables<'logs_nfc'>;
 
